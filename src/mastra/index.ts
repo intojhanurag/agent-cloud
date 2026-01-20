@@ -18,7 +18,11 @@ export const mastra = new Mastra({
     workflows: {
         deploymentWorkflow,
     },
-    storage: new LibSQLStore({
-        url: 'file:./agent-cloud.db',
+    // Use local storage for development
+    // Mastra Cloud will provide its built-in storage in production
+    ...(process.env.NODE_ENV !== 'production' && {
+        storage: new LibSQLStore({
+            url: 'file:./agent-cloud.db',
+        }),
     }),
 });

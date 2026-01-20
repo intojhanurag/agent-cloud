@@ -40,3 +40,8 @@ coverage/
 workflow-snapshots.db
 workflow-snapshots.db-shm
 workflow-snapshots.db-wal
+
+# Local database (development only)
+agent-cloud.db
+agent-cloud.db-shm
+agent-cloud.db-wal
