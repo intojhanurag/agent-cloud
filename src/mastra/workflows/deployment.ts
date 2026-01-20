@@ -2,19 +2,19 @@ import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 
 /**
- * SIMPLIFIED DEPLOYMENT WORKFLOW
+ * COMPLETE DEPLOYMENT WORKFLOW WITH REAL CLOUD EXECUTION
  * 
- * This workflow orchestrates deployment using a single combined step approach
- * to avoid complex type matching issues between steps.
+ * This workflow integrates all agents and cloud providers
+ * for end-to-end deployment to AWS, GCP, or Azure
  */
 
 /**
- * Combined Deployment Step
- * Executes all deployment phases in one step with human approval suspend point
+ * Complete Deployment Step
+ * Executes all deployment phases including REAL cloud deployment
  */
 export const deploymentStep = createStep({
     id: 'deployment',
-    description: 'Complete deployment workflow with all phases',
+    description: 'Complete deployment workflow with real cloud execution',
     inputSchema: z.object({
         projectPath: z.string(),
         cloud: z.enum(['aws', 'gcp', 'azure']),
@@ -41,6 +41,8 @@ export const deploymentStep = createStep({
         estimatedCost: z.number(),
         commands: z.array(z.string()),
         message: z.string(),
+        projectType: z.string().optional(),
+        runtime: z.string().optional(),
     }),
     execute: async ({ inputData, resumeData, suspend }) => {
         const { projectPath, cloud } = inputData;
@@ -146,10 +148,12 @@ Provide JSON with services, estimatedCost, and commands.`;
                 estimatedCost: plan.estimatedCost,
                 commands: plan.commands,
                 message: 'Waiting for user approval to proceed with deployment',
+                projectType: analysis?.projectType,
+                runtime: analysis?.runtime,
             });
         }
 
-        // PHASE 5: Execute Deployment
+        // User rejected
         if (!approved) {
             return {
                 success: false,
@@ -159,22 +163,141 @@ Provide JSON with services, estimatedCost, and commands.`;
             };
         }
 
-        console.log(`🚀 Phase 5: Executing deployment to ${cloud.toUpperCase()}...`);
+        // PHASE 5: REAL CLOUD DEPLOYMENT
+        console.log(`\n🚀 Phase 5: Executing REAL deployment to ${cloud.toUpperCase()}...\n`);
 
-        // Simulated deployment (Phase 4 will do real deployment)
-        return {
-            success: true,
-            deploymentUrl: `https://my-app.${cloud}.example.com`,
-            message: `Deployment to ${cloud.toUpperCase()} completed successfully!`,
-            analysis,
-            plan,
-        };
+        try {
+            let deploymentResult;
+
+            if (cloud === 'aws') {
+                const { AWSProvider } = await import('../../providers/aws/index.js');
+                const aws = new AWSProvider({ region: process.env.AWS_REGION || 'us-east-1' });
+
+                // Authenticate
+                const authenticated = await aws.authenticate();
+                if (!authenticated) {
+                    return {
+                        success: false,
+                        message: 'AWS authentication failed. Run: aws configure',
+                        analysis,
+                        plan,
+                    };
+                }
+
+                // Deploy based on project type
+                const projectType = analysis?.projectType || 'api';
+
+                if (projectType === 'static') {
+                    deploymentResult = await aws.deployStaticSite({
+                        siteName: 'agent-cloud-app',
+                        buildDir: './dist',
+                    });
+                } else {
+                    // Default to ECS for APIs and containers
+                    deploymentResult = await aws.deployToECS({
+                        appName: 'agent-cloud-app',
+                        containerPort: 3000,
+                    });
+                }
+            } else if (cloud === 'gcp') {
+                const { GCPProvider } = await import('../../providers/gcp/index.js');
+                const gcp = new GCPProvider({
+                    project: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
+                    region: process.env.GCLOUD_REGION || 'us-central1',
+                });
+
+                // Authenticate
+                const authenticated = await gcp.authenticate();
+                if (!authenticated) {
+                    return {
+                        success: false,
+                        message: 'GCP authentication failed. Run: gcloud auth login',
+                        analysis,
+                        plan,
+                    };
+                }
+
+                // Deploy based on project type
+                const projectType = analysis?.projectType || 'api';
+
+                if (projectType === 'static') {
+                    deploymentResult = await gcp.deployToFirebase({
+                        siteName: 'agent-cloud-app',
+                        buildDir: './dist',
+                    });
+                } else {
+                    // Default to Cloud Run for APIs and containers
+                    deploymentResult = await gcp.deployToCloudRun({
+                        serviceName: 'agent-cloud-app',
+                        containerPort: 8080,
+                    });
+                }
+            } else if (cloud === 'azure') {
+                const { AzureProvider } = await import('../../providers/azure/index.js');
+                const azure = new AzureProvider({
+                    resourceGroup: process.env.AZURE_RESOURCE_GROUP || 'agent-cloud-rg',
+                    location: process.env.AZURE_LOCATION || 'eastus',
+                });
+
+                // Authenticate
+                const authenticated = await azure.authenticate();
+                if (!authenticated) {
+                    return {
+                        success: false,
+                        message: 'Azure authentication failed. Run: az login',
+                        analysis,
+                        plan,
+                    };
+                }
+
+                // Deploy based on project type
+                const projectType = analysis?.projectType || 'api';
+
+                if (projectType === 'static') {
+                    deploymentResult = await azure.deployStaticWebApp({
+                        appName: 'agent-cloud-app',
+                        buildDir: './dist',
+                    });
+                } else {
+                    // Default to Container Apps for APIs and containers
+                    deploymentResult = await azure.deployToContainerApps({
+                        appName: 'agent-cloud-app',
+                        containerPort: 8080,
+                    });
+                }
+            }
+
+            // Check deployment result
+            if (deploymentResult?.success) {
+                return {
+                    success: true,
+                    deploymentUrl: deploymentResult.url,
+                    message: `✨ Deployment to ${cloud.toUpperCase()} completed successfully!`,
+                    analysis,
+                    plan,
+                };
+            } else {
+                return {
+                    success: false,
+                    message: `Deployment failed: ${deploymentResult?.error || 'Unknown error'}`,
+                    analysis,
+                    plan,
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: `Deployment error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                analysis,
+                plan,
+            };
+        }
     },
 });
 
 /**
  * Main Deployment Workflow
- * Single-step workflow to avoid type matching issues
+ * Single-step workflow with real cloud provider integration
  */
 export const deploymentWorkflow = createWorkflow({
     id: 'cloud-deployment',
