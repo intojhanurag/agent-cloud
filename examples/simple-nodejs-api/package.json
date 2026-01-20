@@ -1,0 +1,26 @@
+{
+    "name": "simple-nodejs-api",
+    "version": "1.0.0",
+    "description": "A simple Node.js REST API to demonstrate agent-cloud deployment",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "node src/index.js",
+        "test": "node src/test.js"
+    },
+    "keywords": [
+        "nodejs",
+        "express",
+        "api",
+        "demo",
+        "agent-cloud"
+    ],
+    "author": "ojha_verse",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

@@ -333,6 +333,31 @@ console.log('Average Duration:', (stats.averageDuration / 1000).toFixed(1) + 's'
 
 ## Examples
 
+### 📦 Complete Demo Application
+
+Want to see a full working example? Check out our **[Simple Node.js API Demo](./examples/simple-nodejs-api/)**!
+
+This complete example includes:
+- ✅ Full REST API with CRUD operations
+- ✅ Docker configuration for all cloud providers
+- ✅ Comprehensive deployment instructions
+- ✅ API testing scripts
+- ✅ Step-by-step deployment guide
+
+**Quick start:**
+```bash
+cd examples/simple-nodejs-api
+npm install
+npm start
+
+# Then deploy to any cloud:
+cloud-agent deploy --cloud aws
+```
+
+**[👉 Read the full example README →](./examples/simple-nodejs-api/README.md)**
+
+---
+
 ### Example 1: Deploy React App to AWS
 
 ```bash
