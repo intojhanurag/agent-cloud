@@ -4,6 +4,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { displayBanner } from './banner.js';
 import { handleError, setupGlobalErrorHandlers } from './error-handler.js';
+import { demoCommand, analyzeCommand, statusCommand, infoCommand } from './commands.js';
+import type { CloudProvider } from '../types/index.js';
 
 /**
  * Main CLI Entry Point
@@ -26,33 +28,53 @@ async function main() {
             .version('1.0.0', '-v, --version', 'Display version number')
             .helpOption('-h, --help', 'Display help information');
 
-        // Deploy command (placeholder for now)
+        // Demo command - showcases the interactive flow
         program
-            .command('deploy')
-            .description('Deploy your application to the cloud')
+            .command('demo')
+            .description('Interactive demo of deployment flow (Phase 1.2)')
             .option('-c, --cloud <provider>', 'Cloud provider (aws, gcp, azure)')
             .option('-y, --yes', 'Skip approval prompts (auto-approve)')
             .action(async (options) => {
-                console.log(chalk.yellow('\n⚠️  Deploy command coming soon in Phase 2!'));
-                console.log(chalk.gray(`Options: ${JSON.stringify(options, null, 2)}\n`));
+                await demoCommand({
+                    cloud: options.cloud as CloudProvider | undefined,
+                    yes: options.yes
+                });
             });
 
-        // Analyze command (placeholder for now)
+        // Deploy command (will be fully implemented in Phase 4)
+        program
+            .command('deploy')
+            .description('Deploy your application to the cloud (Coming in Phase 4)')
+            .option('-c, --cloud <provider>', 'Cloud provider (aws, gcp, azure)')
+            .option('-y, --yes', 'Skip approval prompts (auto-approve)')
+            .action(async (options) => {
+                console.log(chalk.yellow('\n⚠️  Deploy command coming soon in Phase 4!'));
+                console.log(chalk.gray('  For now, try: ') + chalk.bold('cloud-agent demo') + chalk.gray(' to see the interactive flow\n'));
+                console.log(chalk.gray(`  Options: ${JSON.stringify(options, null, 2)}\n`));
+            });
+
+        // Analyze command - project analysis
         program
             .command('analyze')
-            .description('Analyze current project structure')
+            .description('Analyze current project structure (Coming in Phase 2)')
             .action(async () => {
-                console.log(chalk.yellow('\n⚠️  Analyze command coming soon in Phase 2!'));
-                console.log(chalk.gray('This will use the Analyzer Agent to scan your project.\n'));
+                await analyzeCommand();
             });
 
-        // Status command (placeholder for now)
+        // Status command - environment check
         program
             .command('status')
-            .description('Check deployment status and environment')
+            .description('Check deployment status and environment (Coming in Phase 3)')
             .action(async () => {
-                console.log(chalk.yellow('\n⚠️  Status command coming soon in Phase 2!'));
-                console.log(chalk.gray('This will check cloud CLI tools and authentication.\n'));
+                await statusCommand();
+            });
+
+        // Info command - show cloud providers
+        program
+            .command('info')
+            .description('Show available cloud providers and information')
+            .action(async () => {
+                await infoCommand();
             });
 
         // Parse arguments
@@ -61,7 +83,7 @@ async function main() {
         // Show help if no command provided
         if (!process.argv.slice(2).length) {
             program.outputHelp();
-            console.log(chalk.cyan('\n💡 Tip: Start with ') + chalk.bold('cloud-agent analyze') + chalk.cyan(' to scan your project!\n'));
+            console.log(chalk.cyan('\n💡 Tip: Try ') + chalk.bold('cloud-agent demo') + chalk.cyan(' to see the interactive deployment flow!\n'));
         }
 
     } catch (error) {

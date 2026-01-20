@@ -14,13 +14,14 @@
 
 ## 🏗️ Current Status
 
-**Phase 1: Foundation** ✅ (Completed)
-- [x] Project initialization
-- [x] CLI framework setup (Commander + Chalk + Figlet)
-- [x] Beautiful ASCII art banner
-- [x] Interactive prompt system (Coming in 1.2)
-- [ ] Basic Mastra agent setup (Phase 2)
-- [ ] File system analysis tool (Phase 2)
+**Phase 1: Foundation** ✅ **COMPLETED!**
+- [x] **Module 1.1**: CLI framework setup (Commander + Chalk + Figlet)
+- [x] **Module 1.2**: Interactive prompt system with cloud provider selection
+- [x] Beautiful ASCII art banner with gradients
+- [x] Progress tracking (spinners, progress bars, multi-step)
+- [x] Full interactive demo command
+
+**Next: Phase 2** - Mastra Agent System (Analyzer, Deployment, Validator)
 
 ## 📦 Installation
 
@@ -51,17 +52,25 @@ cloud-agent
 ## 🎯 Quick Start
 
 ```bash
-# Display help
+# Display help and see available commands
 cloud-agent --help
 
-# Analyze your project (Coming soon)
-cloud-agent analyze
+# 🌟 Try the interactive demo! (Phase 1.2 - NEW!)
+cloud-agent demo
 
-# Deploy to cloud (Coming soon)
-cloud-agent deploy --cloud aws
+# Demo with specific cloud provider
+cloud-agent demo --cloud aws
 
-# Check deployment status (Coming soon)
-cloud-agent status
+# Demo with auto-approve (skip confirmations)
+cloud-agent demo --yes
+
+# Show cloud provider information
+cloud-agent info
+
+# Other commands (coming soon)
+cloud-agent analyze    # Project analysis (Phase 2)
+cloud-agent deploy     # Actual deployment (Phase 4)
+cloud-agent status     # Environment check (Phase 3)
 ```
 
 ## 🛠️ Development
@@ -84,6 +93,31 @@ pnpm type-check
 
 ### `cloud-agent`
 Display beautiful banner and help information
+
+### `cloud-agent demo` ✨ **NEW!**
+Interactive demo of the full deployment flow
+
+Experience the complete user journey:
+- Chat-like requirement collection
+- Cloud provider selection (AWS/GCP/Azure)
+- Simulated project analysis
+- Deployment plan review
+- Human-in-the-loop approval
+- Progress tracking with visual feedback
+
+Options:
+- `-c, --cloud <provider>` - Preselect cloud provider (aws, gcp, azure)
+- `-y, --yes` - Auto-approve mode (skip confirmations)
+
+**Example:**
+```bash
+cloud-agent demo
+cloud-agent demo --cloud gcp
+cloud-agent demo --yes
+```
+
+### `cloud-agent info` ✨ **NEW!**
+Show all available cloud providers with detailed information
 
 ### `cloud-agent analyze` (Coming in Phase 2)
 Analyze current project structure and detect technology stack
