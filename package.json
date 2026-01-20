@@ -1,0 +1,50 @@
+{
+  "name": "agent-cloud",
+  "version": "1.0.0",
+  "description": "AI-Powered Cloud Deployment CLI using Mastra",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "cloud-agent": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "build": "tsc",
+    "start": "node dist/cli/index.js",
+    "test": "vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "ai",
+    "cloud",
+    "deployment",
+    "mastra",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@mastra/core": "latest",
+    "@mastra/libsql": "latest",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "figlet": "^1.7.0",
+    "gradient-string": "^2.0.2",
+    "inquirer": "^9.2.15",
+    "ora": "^8.0.1",
+    "cli-progress": "^3.12.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "@types/figlet": "^1.5.8",
+    "@types/inquirer": "^9.0.7",
+    "@types/cli-progress": "^3.11.5",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.1",
+    "vitest": "^1.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
