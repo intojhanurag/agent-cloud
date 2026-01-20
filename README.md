@@ -49,6 +49,34 @@ npm install -g agent-cloud
 cloud-agent
 ```
 
+## ⚙️ Setup (Phase 2: AI Agent)
+
+To use the AI-powered project analyzer, you need an API key:
+
+### **Option 1: Google Gemini (Recommended - FREE!)** 🆓
+
+1. Get your free key: https://aistudio.google.com/app/apikey
+2. Create `.env` file:
+```bash
+cp .env.example .env
+```
+3. Add to `.env`:
+```bash
+GOOGLE_API_KEY=your-gemini-key-here
+```
+
+### **Option 2: OpenAI (Alternative - Paid)**
+
+1. Get your key: https://platform.openai.com/api-keys
+2. Add to `.env`:
+```bash
+OPENAI_API_KEY=your-openai-key-here
+```
+
+**Note:** You only need ONE API key. The agent will use Gemini first (if set), then fallback to OpenAI.
+
+See **[GEMINI-SETUP.md](./GEMINI-SETUP.md)** for detailed instructions.
+
 ## 🎯 Quick Start
 
 ```bash

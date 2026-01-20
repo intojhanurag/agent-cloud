@@ -121,26 +121,165 @@ export async function demoCommand(options: { cloud?: CloudProvider; yes?: boolea
 }
 
 /**
- * Analyze command (Phase 2 placeholder)
+ * Analyze command - Uses Mastra AI agent to analyze project
  */
 export async function analyzeCommand(): Promise<void> {
-    displayHeader('Project Analysis');
+    try {
+        const projectPath = process.cwd();
 
-    await withSpinner(
-        'Scanning project directory',
-        async () => {
-            await delay(1500);
-        },
-        'Project scan complete'
-    );
+        displayHeader('AI-Powered Project Analysis');
+        displayInfo(`Analyzing project at: ${chalk.bold(projectPath)}`);
+        console.log();
 
-    console.log();
-    displayInfo('Project analysis coming in Phase 2!');
-    displayInfo('This will use the Mastra Analyzer Agent to:');
-    console.log(chalk.gray('  • Detect your technology stack'));
-    console.log(chalk.gray('  • Identify dependencies and services'));
-    console.log(chalk.gray('  • Recommend optimal cloud configuration'));
-    console.log();
+        // Import the mastra instance dynamically
+        const { mastra } = await import('../mastra/index.js');
+        const agent = mastra.getAgent('analyzerAgent');
+
+        // Step 1: Initial analysis
+        await withSpinner(
+            'Initializing AI analyzer',
+            async () => {
+                await delay(500);
+            },
+            'AI analyzer ready'
+        );
+
+        // Step 2: Run the agent analysis
+        displayInfo('🤖 AI agent is analyzing your project...');
+        console.log(chalk.gray('  This may take a moment as the agent examines your code.\n'));
+
+        const analysisPrompt = `Analyze the project located at: ${projectPath}
+
+Please perform a comprehensive analysis:
+1. Scan the project directory structure
+2. Identify the runtime and technology stack
+3. Analyze dependencies from package.json or other manifest files
+4. Detect frameworks and databases
+5. Determine if Docker is used
+6. Extract build and start commands
+7. Identify required environment variables
+8. Recommend appropriate cloud services for AWS, GCP, and Azure
+9. Estimate monthly costs for each cloud provider
+
+Provide your analysis in JSON format as specified in your instructions.`;
+
+        let fullResponse = '';
+        const stream = await agent.stream([
+            {
+                role: 'user',
+                content: analysisPrompt,
+            },
+        ]);
+
+        // Stream the response
+        console.log(chalk.cyan('  📊 Analysis Results:\n'));
+        for await (const chunk of stream.textStream) {
+            process.stdout.write(chalk.gray(chunk));
+            fullResponse += chunk;
+        }
+
+        console.log('\n');
+
+        // Try to parse JSON from the response
+        try {
+            // Extract JSON from markdown code blocks if present
+            let jsonStr = fullResponse;
+            const jsonMatch = fullResponse.match(/```json?\n?([\s\S]*?)\n?```/);
+            if (jsonMatch) {
+                jsonStr = jsonMatch[1];
+            }
+
+            const analysis = JSON.parse(jsonStr);
+
+            // Display structured results
+            displayHeader('Analysis Summary');
+
+            if (analysis.projectType) {
+                displayInfo(`Project Type: ${chalk.bold(analysis.projectType.toUpperCase())}`);
+            }
+            if (analysis.runtime) {
+                displayInfo(`Runtime: ${chalk.bold(analysis.runtime)}`);
+            }
+            if (analysis.framework) {
+                displayInfo(`Framework: ${chalk.bold(analysis.framework)}`);
+            }
+            if (analysis.databases && analysis.databases.length > 0) {
+                displayInfo(`Databases: ${chalk.bold(analysis.databases.join(', '))}`);
+            }
+            if (analysis.hasDocker !== undefined) {
+                displayInfo(`Docker: ${chalk.bold(analysis.hasDocker ? 'Yes' : 'No')}`);
+            }
+
+            console.log();
+
+            // Display recommended services
+            if (analysis.recommendedServices) {
+                displayHeader('Recommended Cloud Services');
+
+                if (analysis.recommendedServices.aws) {
+                    console.log(chalk.cyan('  ☁️  AWS:'));
+                    analysis.recommendedServices.aws.forEach((service: string) => {
+                        console.log(chalk.gray(`     • ${service}`));
+                    });
+                    console.log();
+                }
+
+                if (analysis.recommendedServices.gcp) {
+                    console.log(chalk.cyan('  🌐 GCP:'));
+                    analysis.recommendedServices.gcp.forEach((service: string) => {
+                        console.log(chalk.gray(`     • ${service}`));
+                    });
+                    console.log();
+                }
+
+                if (analysis.recommendedServices.azure) {
+                    console.log(chalk.cyan('  ⚡ Azure:'));
+                    analysis.recommendedServices.azure.forEach((service: string) => {
+                        console.log(chalk.gray(`     • ${service}`));
+                    });
+                    console.log();
+                }
+            }
+
+            // Display cost estimates
+            if (analysis.estimatedCost) {
+                displayHeader('Estimated Monthly Costs');
+                if (analysis.estimatedCost.aws) {
+                    console.log(chalk.white('  AWS: ') + chalk.green(`$${analysis.estimatedCost.aws}`));
+                }
+                if (analysis.estimatedCost.gcp) {
+                    console.log(chalk.white('  GCP: ') + chalk.green(`$${analysis.estimatedCost.gcp}`));
+                }
+                if (analysis.estimatedCost.azure) {
+                    console.log(chalk.white('  Azure: ') + chalk.green(`$${analysis.estimatedCost.azure}`));
+                }
+                console.log();
+            }
+
+            displaySuccess('Analysis complete!');
+            displayInfo('Run ' + chalk.bold('cloud-agent demo') + ' to see the deployment flow');
+            console.log();
+
+        } catch (parseError) {
+            // If JSON parsing fails, just show the raw text (already displayed)
+            console.log();
+            displayInfo('Analysis complete! (Raw AI response shown above)');
+            console.log();
+        }
+
+    } catch (error) {
+        displayError('Analysis failed');
+        console.error(chalk.red(`  Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        console.log();
+
+        // Show helpful error message for missing API keys
+        if (error instanceof Error && (error.message.includes('API') || error.message.includes('key'))) {
+            console.log(chalk.yellow('  💡 Tip: You need an AI API key to use the analyzer'));
+            console.log(chalk.gray('     Option 1 (Free): Get Google Gemini key from https://aistudio.google.com'));
+            console.log(chalk.gray('     Option 2 (Paid): Get OpenAI key from https://platform.openai.com'));
+            console.log(chalk.gray('     Add to .env: GOOGLE_API_KEY=your-key-here\n'));
+        }
+    }
 }
 
 /**
