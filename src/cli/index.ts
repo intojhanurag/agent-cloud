@@ -4,7 +4,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { displayBanner } from './banner.js';
 import { handleError, setupGlobalErrorHandlers } from './error-handler.js';
-import { demoCommand, analyzeCommand, statusCommand, infoCommand } from './commands.js';
+import { demoCommand, analyzeCommand, infoCommand } from './commands.js';
+import { realStatusCommand, realDeployCommand } from './workflow-commands.js';
 import type { CloudProvider } from '../types/index.js';
 
 /**
@@ -41,16 +42,17 @@ async function main() {
                 });
             });
 
-        // Deploy command (will be fully implemented in Phase 4)
+        // Deploy command - Real deployment workflow (Phase 3.2)
         program
             .command('deploy')
-            .description('Deploy your application to the cloud (Coming in Phase 4)')
+            .description('Deploy your application to the cloud')
             .option('-c, --cloud <provider>', 'Cloud provider (aws, gcp, azure)')
-            .option('-y, --yes', 'Skip approval prompts (auto-approve)')
+            .option('-y, --yes', 'Auto-approve deployment')
             .action(async (options) => {
-                console.log(chalk.yellow('\n⚠️  Deploy command coming soon in Phase 4!'));
-                console.log(chalk.gray('  For now, try: ') + chalk.bold('cloud-agent demo') + chalk.gray(' to see the interactive flow\n'));
-                console.log(chalk.gray(`  Options: ${JSON.stringify(options, null, 2)}\n`));
+                await realDeployCommand({
+                    cloud: options.cloud as CloudProvider | undefined,
+                    yes: options.yes
+                });
             });
 
         // Analyze command - project analysis
@@ -61,12 +63,15 @@ async function main() {
                 await analyzeCommand();
             });
 
-        // Status command - environment check
+        // Status command - Real environment validation (Phase 3.2)
         program
             .command('status')
-            .description('Check deployment status and environment (Coming in Phase 3)')
-            .action(async () => {
-                await statusCommand();
+            .description('Check environment readiness for deployment')
+            .option('-c, --cloud <provider>', 'Cloud provider to check (aws, gcp, azure)')
+            .action(async (options) => {
+                await realStatusCommand({
+                    cloud: options.cloud as CloudProvider | undefined
+                });
             });
 
         // Info command - show cloud providers
