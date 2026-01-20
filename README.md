@@ -53,8 +53,9 @@ Before using Agent Cloud, ensure you have:
 - **gcloud CLI** - For GCP deployments ([Install](https://cloud.google.com/sdk/docs/install))
 - **Azure CLI** - For Azure deployments ([Install](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli))
 
-### API Keys
+### API Keys (Choose one or both)
 - **OpenAI API Key** - For AI agents ([Get Key](https://platform.openai.com/api-keys))
+- **Google Gemini API Key** - Alternative AI provider ([Get Key](https://makersuite.google.com/app/apikey))
 
 ---
 
@@ -104,8 +105,10 @@ az account set --subscription YOUR_SUBSCRIPTION_ID
 Create a `.env` file in the project root:
 
 ```bash
-# Required
+# AI Provider (Choose one)
 OPENAI_API_KEY=your_openai_api_key_here
+# OR use Google Gemini
+GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key_here
 
 # Optional - Cloud configurations
 AWS_REGION=us-east-1
@@ -391,8 +394,9 @@ cloud-agent deploy --cloud azure --yes
 ### Environment Variables
 
 ```bash
-# AI Configuration
-OPENAI_API_KEY=sk-...                    # Required: OpenAI API key
+# AI Configuration (Choose one)
+OPENAI_API_KEY=sk-...                    # Option 1: OpenAI API key
+GOOGLE_GENERATIVE_AI_API_KEY=...         # Option 2: Google Gemini API key
 
 # AWS Configuration
 AWS_REGION=us-east-1                     # Default: us-east-1
@@ -472,16 +476,21 @@ az account show
 az login
 ```
 
-#### "OpenAI API Key Not Found"
+#### "AI API Key Not Found"
 
-Make sure you've set the `OPENAI_API_KEY` environment variable:
+Make sure you've set either the `OPENAI_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` environment variable:
 
 ```bash
-# Add to .env file
+# Option 1: Add OpenAI key to .env file
 echo "OPENAI_API_KEY=sk-your-key-here" >> .env
+
+# Option 2: Add Gemini key to .env file
+echo "GOOGLE_GENERATIVE_AI_API_KEY=your-key-here" >> .env
 
 # Or export temporarily
 export OPENAI_API_KEY=sk-your-key-here
+# OR
+export GOOGLE_GENERATIVE_AI_API_KEY=your-key-here
 ```
 
 #### "Command Not Found: cloud-agent"
@@ -587,6 +596,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Built with:
 - [Mastra](https://mastra.ai/) - AI agent framework
 - [OpenAI](https://openai.com/) - AI models
+- [Google Gemini](https://ai.google.dev/) - AI models (alternative)
 - [TypeScript](https://www.typescriptlang.org/) - Type safety
 - [Commander.js](https://github.com/tj/commander.js/) - CLI framework
 
@@ -615,7 +625,7 @@ Built with:
 
 <div align="center">
 
-**Built with care by [ojha_verse](https://x.com/ojhaverse23)**
+**Built with ❤️ by [ojha_verse](https://x.com/ojhaverse23)**
 
 **Star us on GitHub if you find this useful!**
 
