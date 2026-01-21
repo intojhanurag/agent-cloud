@@ -1,8 +1,8 @@
 import { Agent } from '@mastra/core/agent';
 import {
-    serviceMapperTool,
-    costEstimatorTool,
-    commandGeneratorTool,
+  serviceMapperTool,
+  costEstimatorTool,
+  commandGeneratorTool,
 } from '../tools/deployment.js';
 
 /**
@@ -22,9 +22,10 @@ import {
  * 4. Provide multi-cloud comparisons
  */
 export const deploymentAgent = new Agent({
-    name: 'deployment-planner',
+  id: 'deployment-planner',
+  name: 'deployment-planner',
 
-    instructions: `You are an expert cloud architect specializing in multi-cloud deployments. Your role is to create comprehensive, cost-effective deployment plans for software projects.
+  instructions: `You are an expert cloud architect specializing in multi-cloud deployments. Your role is to create comprehensive, cost-effective deployment plans for software projects.
 
 **Your Planning Process:**
 
@@ -133,17 +134,17 @@ Provide your deployment plan in structured JSON:
 - Recommend the BEST cloud for this specific project
 - Include warnings about limitations or additional costs`,
 
-    // Multi-model support: Gemini first, OpenAI fallback
-    model: [
-        { model: 'google/gemini-1.5-flash' },
-        { model: 'openai/gpt-4o-mini' },
-    ],
+  // Multi-model support: Gemini first, OpenAI fallback
+  model: [
+    { model: 'google/gemini-1.5-flash' },
+    { model: 'openai/gpt-4o-mini' },
+  ],
 
-    tools: {
-        serviceMapperTool,
-        costEstimatorTool,
-        commandGeneratorTool,
-    },
+  tools: {
+    serviceMapperTool,
+    costEstimatorTool,
+    commandGeneratorTool,
+  },
 
-    maxRetries: 2,
+  maxRetries: 2,
 });

@@ -110,7 +110,7 @@ export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?:
         const { mastra } = await import('../mastra/index.js');
         const workflow = mastra.getWorkflow('deploymentWorkflow');
 
-        const run = await workflow.createRunAsync();
+        const run = await workflow.createRun();
 
         // Start the workflow with spinner
         const spinner = new Spinner('Running deployment phases...');

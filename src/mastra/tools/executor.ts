@@ -24,8 +24,8 @@ export const commandExecutorTool = createTool({
         exitCode: z.number().describe('Exit code'),
         success: z.boolean().describe('Whether command succeeded'),
     }),
-    execute: async ({ context }) => {
-        const { command, cwd, env, timeout } = context;
+    execute: async (inputData, context) => {
+        const { command, cwd, env, timeout } = inputData;
 
         try {
             const { stdout, stderr } = await execAsync(command, {
@@ -70,8 +70,8 @@ export const awsCommandTool = createTool({
         success: z.boolean().describe('Whether command succeeded'),
         error: z.string().optional().describe('Error message if failed'),
     }),
-    execute: async ({ context }) => {
-        const { service, action, parameters = {}, region } = context;
+    execute: async (inputData, context) => {
+        const { service, action, parameters = {}, region } = inputData;
 
         // Build AWS CLI command
         const params = Object.entries(parameters)
@@ -127,8 +127,8 @@ export const dockerBuildTool = createTool({
         success: z.boolean().describe('Whether build succeeded'),
         error: z.string().optional().describe('Error message if failed'),
     }),
-    execute: async ({ context }) => {
-        const { imageName, tag = 'latest', dockerfile = 'Dockerfile', context: buildContext = '.' } = context;
+    execute: async (inputData, context) => {
+        const { imageName, tag = 'latest', dockerfile = 'Dockerfile', context: buildContext = '.' } = inputData;
 
         const fullImageName = `${imageName}:${tag}`;
         const command = `docker build -t ${fullImageName} -f ${dockerfile} ${buildContext}`;

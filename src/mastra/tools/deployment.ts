@@ -123,8 +123,8 @@ export const serviceMapperTool = createTool({
         }),
         recommendations: z.array(z.string()),
     }),
-    execute: async ({ context }) => {
-        const { projectType, cloud, runtime, databases, hasDocker } = context;
+    execute: async (inputData, context) => {
+        const { projectType, cloud, runtime, databases, hasDocker } = inputData;
 
         let serviceMap;
         switch (cloud) {
@@ -204,8 +204,8 @@ export const costEstimatorTool = createTool({
             other: z.number(),
         }),
     }),
-    execute: async ({ context }) => {
-        const { cloud, services, scale } = context;
+    execute: async (inputData, context) => {
+        const { cloud, services, scale } = inputData;
 
         // Base costs (monthly, USD)
         const costs = {
@@ -287,8 +287,8 @@ export const commandGeneratorTool = createTool({
     outputSchema: z.object({
         commands: z.array(z.string()),
     }),
-    execute: async ({ context }) => {
-        const { cloud, projectType, projectName, services } = context;
+    execute: async (inputData, context) => {
+        const { cloud, projectType, projectName, services } = inputData;
         const commands: string[] = [];
 
         if (cloud === 'aws') {

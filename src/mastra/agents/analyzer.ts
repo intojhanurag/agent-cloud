@@ -25,6 +25,7 @@ import {
  * 4. Determine optimal cloud deployment configuration
  */
 export const analyzerAgent = new Agent({
+  id: 'project-analyzer',
   name: 'project-analyzer',
 
   instructions: `You are an expert DevOps and cloud deployment analyst. Your role is to analyze software projects and provide detailed, actionable deployment recommendations.

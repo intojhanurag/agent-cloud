@@ -76,7 +76,7 @@ export function displayBanner(): void {
     console.log(chalk.cyan('  ╚═══════════════════════════════════════════════════════════════════════════╝'));
 
     // Powered by
-    const poweredBy = '🤖 Powered by Mastra AI';
+    const poweredBy = '🤖 Powered by ojhaverse';
     const poweredPadding = Math.floor((79 - poweredBy.length) / 2);
     console.log(' '.repeat(poweredPadding) + chalk.magenta(poweredBy));
     console.log('\n');

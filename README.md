@@ -8,7 +8,8 @@ Deploy your applications to AWS, GCP, or Azure with intelligent AI agents that a
 [![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![alt text](image.png)
+![alt text](image-2.png)
+![alt text](image-1.png)
 ---
 
 ## Features

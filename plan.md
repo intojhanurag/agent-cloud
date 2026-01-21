@@ -84,7 +84,7 @@ cloud-agent
   ║              v1.0.0                   ║
   ╚═══════════════════════════════════════╝
 
-  🤖 Powered by Mastra AI
+  🤖 Built by ojhaverse
 ```
 
 #### 1.2 Interactive Prompt System

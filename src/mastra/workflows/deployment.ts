@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getLogger } from '../../utils/logger.js';
 import { getErrorHandler, ErrorFactory } from '../../utils/error-handler.js';
 import { getConfigManager } from '../../utils/config.js';
+import { validatorAgent, analyzerAgent, deploymentAgent } from '../agents/index.js';
 
 /**
  * COMPLETE DEPLOYMENT WORKFLOW WITH REAL CLOUD EXECUTION
@@ -13,7 +14,7 @@ import { getConfigManager } from '../../utils/config.js';
 
 /**
  * Complete Deployment Step
- * Executes all deployment phases including REAL cloud deployment
+ * Executes all deployment phases including REAL cloud execution
  */
 export const deploymentStep = createStep({
     id: 'deployment',
@@ -67,20 +68,15 @@ export const deploymentStep = createStep({
         }
 
         try {
-            // Import mastra instance
-            const { mastra } = await import('../index.js');
-
             // PHASE 1: Environment Validation (only on first run)
             if (!resumeData) {
                 console.log('🔍 Phase 1: Validating environment...');
                 logger.info('Validating environment', { cloud });
 
-                const validator = mastra.getAgent('validatorAgent');
-
                 const validationPrompt = `Validate my ${cloud.toUpperCase()} environment. Check CLI, auth, env vars, network, and permissions.`;
 
                 let fullResponse = '';
-                const validatorStream = await validator.stream([{ role: 'user', content: validationPrompt }]);
+                const validatorStream = await validatorAgent.stream([{ role: 'user', content: validationPrompt }]);
                 for await (const chunk of validatorStream.textStream) {
                     fullResponse += chunk;
                 }
@@ -95,12 +91,10 @@ export const deploymentStep = createStep({
                 console.log('📊 Phase 2: Analyzing project...');
                 logger.info('Analyzing project', { projectPath });
 
-                const analyzer = mastra.getAgent('analyzerAgent');
-
                 const analysisPrompt = `Analyze the project at: ${projectPath}. Provide JSON with projectType, runtime, framework, databases.`;
 
                 let fullResponse = '';
-                const analyzerStream = await analyzer.stream([{ role: 'user', content: analysisPrompt }]);
+                const analyzerStream = await analyzerAgent.stream([{ role: 'user', content: analysisPrompt }]);
                 for await (const chunk of analyzerStream.textStream) {
                     fullResponse += chunk;
                 }
@@ -132,8 +126,6 @@ export const deploymentStep = createStep({
                 console.log('☁️  Phase 3: Generating deployment plan...');
                 logger.info('Generating deployment plan', { cloud });
 
-                const deployment = mastra.getAgent('deploymentAgent');
-
                 const planPrompt = `Create a deployment plan for:
             
 Project Type: ${analysis?.projectType || 'api'}
@@ -144,7 +136,7 @@ Target Cloud: ${cloud}
 Provide JSON with services, estimatedCost, and commands.`;
 
                 let fullResponse = '';
-                const deploymentStream = await deployment.stream([{ role: 'user', content: planPrompt }]);
+                const deploymentStream = await deploymentAgent.stream([{ role: 'user', content: planPrompt }]);
                 for await (const chunk of deploymentStream.textStream) {
                     fullResponse += chunk;
                 }
@@ -295,7 +287,7 @@ Provide JSON with services, estimatedCost, and commands.`;
                     const { AzureProvider } = await import('../../providers/azure/index.js');
                     const azure = new AzureProvider({
                         resourceGroup: process.env.AZURE_RESOURCE_GROUP || 'agent-cloud-rg',
-                        location: process.env.AZURE_LOCATION || 'eastus',
+                        location: process.env.AZURE_LOCATION || 'centralindia',
                     });
 
                     // Authenticate

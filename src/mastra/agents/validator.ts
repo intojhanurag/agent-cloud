@@ -1,10 +1,10 @@
 import { Agent } from '@mastra/core/agent';
 import {
-    cliCheckerTool,
-    authCheckerTool,
-    envVarCheckerTool,
-    networkCheckerTool,
-    permissionsCheckerTool,
+  cliCheckerTool,
+  authCheckerTool,
+  envVarCheckerTool,
+  networkCheckerTool,
+  permissionsCheckerTool,
 } from '../tools/validator.js';
 
 /**
@@ -25,9 +25,10 @@ import {
  * 5. Validate basic permissions
  */
 export const validatorAgent = new Agent({
-    name: 'environment-validator',
+  id: 'environment-validator',
+  name: 'environment-validator',
 
-    instructions: `You are an expert DevOps engineer specializing in environment validation and troubleshooting. Your role is to verify that a user's environment is correctly set up for cloud deployments.
+  instructions: `You are an expert DevOps engineer specializing in environment validation and troubleshooting. Your role is to verify that a user's environment is correctly set up for cloud deployments.
 
 **Your Validation Process:**
 
@@ -131,19 +132,19 @@ Provide your validation report in structured JSON:
 - **warning**: May cause issues, should be fixed
 - **info**: Optional improvements, nice to have`,
 
-    // Multi-model support: Gemini first, OpenAI fallback
-    model: [
-        { model: 'google/gemini-1.5-flash' },
-        { model: 'openai/gpt-4o-mini' },
-    ],
+  // Multi-model support: Gemini first, OpenAI fallback
+  model: [
+    { model: 'google/gemini-1.5-flash' },
+    { model: 'openai/gpt-4o-mini' },
+  ],
 
-    tools: {
-        cliCheckerTool,
-        authCheckerTool,
-        envVarCheckerTool,
-        networkCheckerTool,
-        permissionsCheckerTool,
-    },
+  tools: {
+    cliCheckerTool,
+    authCheckerTool,
+    envVarCheckerTool,
+    networkCheckerTool,
+    permissionsCheckerTool,
+  },
 
-    maxRetries: 2,
+  maxRetries: 2,
 });

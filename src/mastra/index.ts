@@ -22,6 +22,7 @@ export const mastra = new Mastra({
     // Mastra Cloud will provide its built-in storage in production
     ...(process.env.NODE_ENV !== 'production' && {
         storage: new LibSQLStore({
+            id: 'agent-cloud-storage',
             url: 'file:./agent-cloud.db',
         }),
     }),

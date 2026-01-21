@@ -22,8 +22,8 @@ export const cliCheckerTool = createTool({
         installUrl: z.string(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { cloud } = context;
+    execute: async (inputData, context) => {
+        const { cloud } = inputData;
 
         const cliCommands = {
             aws: {
@@ -83,8 +83,8 @@ export const authCheckerTool = createTool({
         account: z.string().optional(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { cloud } = context;
+    execute: async (inputData, context) => {
+        const { cloud } = inputData;
 
         try {
             if (cloud === 'aws') {
@@ -176,8 +176,8 @@ export const envVarCheckerTool = createTool({
         present: z.array(z.string()),
         optional: z.array(z.string()),
     }),
-    execute: async ({ context }) => {
-        const { cloud } = context;
+    execute: async (inputData, context) => {
+        const { cloud } = inputData;
 
         const requiredVars: Record<string, string[]> = {
             aws: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
@@ -230,8 +230,8 @@ export const networkCheckerTool = createTool({
         endpoint: z.string(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { cloud } = context;
+    execute: async (inputData, context) => {
+        const { cloud } = inputData;
 
         const endpoints: Record<string, string> = {
             aws: 'aws.amazon.com',
@@ -281,8 +281,8 @@ export const permissionsCheckerTool = createTool({
         suggestions: z.array(z.string()),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { cloud } = context;
+    execute: async (inputData, context) => {
+        const { cloud } = inputData;
         const suggestions: string[] = [];
 
         try {

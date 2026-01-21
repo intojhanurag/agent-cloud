@@ -24,8 +24,8 @@ export const fileSystemTool = createTool({
         totalFiles: z.number(),
         totalDirectories: z.number(),
     }),
-    execute: async ({ context }) => {
-        const { projectPath, maxDepth = 3 } = context;
+    execute: async (inputData, context) => {
+        const { projectPath, maxDepth = 3 } = inputData;
 
         const files: Array<{
             path: string;
@@ -112,8 +112,8 @@ export const fileReaderTool = createTool({
         exists: z.boolean(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { filePath } = context;
+    execute: async (inputData, context) => {
+        const { filePath } = inputData;
 
         try {
             const content = await fs.readFile(filePath, 'utf-8');
@@ -150,8 +150,8 @@ export const dependencyAnalyzerTool = createTool({
         databases: z.array(z.string()),
         hasDocker: z.boolean(),
     }),
-    execute: async ({ context }) => {
-        const { projectPath } = context;
+    execute: async (inputData, context) => {
+        const { projectPath } = inputData;
 
         let runtime: string | undefined;
         let packageManager: string | undefined;
@@ -277,8 +277,8 @@ export const packageJsonParserTool = createTool({
         startCommand: z.string().optional(),
         buildCommand: z.string().optional(),
     }),
-    execute: async ({ context }) => {
-        const { projectPath } = context;
+    execute: async (inputData, context) => {
+        const { projectPath } = inputData;
 
         try {
             const packageJsonPath = path.join(projectPath, 'package.json');

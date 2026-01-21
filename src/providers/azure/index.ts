@@ -37,7 +37,7 @@ export class AzureProvider {
         this.config = {
             subscriptionId: config.subscriptionId || process.env.AZURE_SUBSCRIPTION_ID,
             resourceGroup: config.resourceGroup || process.env.AZURE_RESOURCE_GROUP || 'agent-cloud-rg',
-            location: config.location || process.env.AZURE_LOCATION || 'eastus',
+            location: config.location || process.env.AZURE_LOCATION || 'centralindia',
         };
     }
 
@@ -109,32 +109,24 @@ export class AzureProvider {
             // Create Container Apps environment
             console.log('🌐 Creating Container Apps environment...');
             try {
-                await execAsync(`
-                    az containerapp env create \
-                        --name ${environmentName} \
-                        --resource-group ${this.config.resourceGroup} \
-                        --location ${this.config.location}
-                `);
+                await execAsync(`az containerapp env create --name ${environmentName} --resource-group ${this.config.resourceGroup} --location ${this.config.location}`);
                 console.log(`✓ Environment created: ${environmentName}`);
-            } catch {
-                console.log(`✓ Using existing environment: ${environmentName}`);
+            } catch (envError) {
+                // Try to use existing environment
+                try {
+                    await execAsync(`az containerapp env show --name ${environmentName} --resource-group ${this.config.resourceGroup}`);
+                    console.log(`✓ Using existing environment: ${environmentName}`);
+                } catch {
+                    // Environment doesn't exist and creation failed
+                    throw new Error(`Failed to create or find Container Apps environment: ${envError instanceof Error ? envError.message : 'Unknown error'}`);
+                }
             }
 
             // Deploy container app
             console.log('\n📦 Deploying container app...');
             const image = options.dockerImage || 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest';
 
-            const { stdout } = await execAsync(`
-                az containerapp create \
-                    --name ${appName} \
-                    --resource-group ${this.config.resourceGroup} \
-                    --environment ${environmentName} \
-                    --image ${image} \
-                    --target-port ${containerPort} \
-                    --ingress external \
-                    --query properties.configuration.ingress.fqdn \
-                    --output tsv
-            `);
+            const { stdout } = await execAsync(`az containerapp create --name ${appName} --resource-group ${this.config.resourceGroup} --environment ${environmentName} --image ${image} --target-port ${containerPort} --ingress external --query properties.configuration.ingress.fqdn --output tsv`);
 
             const fqdn = stdout.trim();
             const url = `https://${fqdn}`;

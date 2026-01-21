@@ -47,8 +47,14 @@ async function main() {
             .command('deploy')
             .description('Deploy your application to the cloud')
             .option('-c, --cloud <provider>', 'Cloud provider (aws, gcp, azure)')
+            .option('-p, --path <directory>', 'Path to project directory (default: current directory)')
             .option('-y, --yes', 'Auto-approve deployment')
             .action(async (options) => {
+                // Change to project directory if specified
+                if (options.path) {
+                    process.chdir(options.path);
+                }
+
                 await realDeployCommand({
                     cloud: options.cloud as CloudProvider | undefined,
                     yes: options.yes
@@ -88,7 +94,9 @@ async function main() {
         // Show help if no command provided
         if (!process.argv.slice(2).length) {
             program.outputHelp();
-            console.log(chalk.cyan('\n💡 Tip: Try ') + chalk.bold('cloud-agent demo') + chalk.cyan(' to see the interactive deployment flow!\n'));
+            console.log(chalk.cyan('\n💡 Tips:'));
+            console.log(chalk.cyan('  • Try ') + chalk.bold('cloud-agent demo') + chalk.cyan(' to see the interactive deployment flow'));
+            console.log(chalk.cyan('  • Use ') + chalk.bold('cloud-agent deploy --path ./my-project --cloud aws') + chalk.cyan(' to deploy a specific project\n'));
         }
 
     } catch (error) {
