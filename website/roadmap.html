@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roadmap | Agent Cloud</title>
+    <meta name="description" content="A lightweight roadmap for Agent Cloud and its public website." />
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="./index.html" aria-label="Agent Cloud home">
+          <svg aria-hidden="true" viewBox="0 0 64 64" width="22" height="22">
+            <defs>
+              <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#7c3aed" />
+                <stop offset="1" stop-color="#22c55e" />
+              </linearGradient>
+            </defs>
+            <rect x="6" y="6" width="52" height="52" rx="14" fill="url(#brand)" />
+            <path
+              d="M22 38c0-6 4-10 10-10 1 0 2 .1 3 .3C37 24 40 22 44 22c6 0 10 4 10 10s-4 10-10 10H26c-2.2 0-4-1.8-4-4Z"
+              fill="rgba(11,18,32,.9)"
+            />
+          </svg>
+          <span>Agent Cloud</span>
+        </a>
+
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="./features.html">Features</a>
+          <a href="./how-it-works.html">How it works</a>
+          <a href="./getting-started.html">Getting started</a>
+          <a href="./contributing.html">Contributing</a>
+          <a href="./roadmap.html" aria-current="page">Roadmap</a>
+        </nav>
+
+        <div class="nav-actions">
+          <button class="button" type="button" data-theme-toggle>System</button>
+          <a class="button" href="https://github.com/intojhanurag/agent-cloud" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="content" class="container">
+      <section class="hero">
+        <h1>Roadmap</h1>
+        <p>
+          A simple, community-friendly roadmap. The idea is to keep the platform easy to understand while steadily expanding
+          coverage, quality, and onboarding.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Near term</h2>
+        <p>Things that move the project forward without changing the core architecture.</p>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Website polish</h3>
+            <p>Add richer diagrams, screenshots, and a short CLI demo GIF. Improve accessibility and mobile layout.</p>
+          </div>
+          <div class="card">
+            <h3>Provider guides</h3>
+            <p>Cloud-specific pages with permissions checklists and common failure modes.</p>
+          </div>
+          <div class="card">
+            <h3>Templates</h3>
+            <p>Example deployments for popular stacks (Next.js, Express, Fastify, static Vite apps).</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Medium term</h2>
+        <p>More coverage and confidence.</p>
+
+        <div class="grid">
+          <div class="card">
+            <h3>More deployment targets</h3>
+            <p>Expand the matrix of providers and services while keeping the workflow consistent.</p>
+          </div>
+          <div class="card">
+            <h3>Better smoke tests</h3>
+            <p>Add end-to-end validation for common scenarios to avoid regressions across providers.</p>
+          </div>
+          <div class="card">
+            <h3>Observability</h3>
+            <p>More structured logs and clearer error messages to shorten troubleshooting time.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Longer term</h2>
+        <p>Make deployments more repeatable across teams and environments.</p>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Multi-env workflows</h3>
+            <p>Promote dev to staging to prod using the same plan artifacts and approvals.</p>
+          </div>
+          <div class="card">
+            <h3>Collaboration</h3>
+            <p>Share plans, approvals, and outcomes across a team without losing local-first usability.</p>
+          </div>
+          <div class="card">
+            <h3>Deployment history UX</h3>
+            <p>Stronger reporting for what was deployed, where, and what changed between runs.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>
+          Have an idea? Open an issue or a PR on
+          <a href="https://github.com/intojhanurag/agent-cloud" target="_blank" rel="noreferrer">GitHub</a>.
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="./assets/site.js"></script>
+  </body>
+</html>
