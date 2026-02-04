@@ -34,6 +34,16 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Website (static site + hosting outputs)
+website/.cache/
+website/.astro/
+website/.next/
+website/out/
+website/build/
+website/dist/
+website/.vercel/
+website/.netlify/
+
 # Testing
 coverage/
 

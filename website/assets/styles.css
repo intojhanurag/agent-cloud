@@ -1,0 +1,361 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0b1220;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.1);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.72);
+  --border: rgba(255, 255, 255, 0.14);
+  --brand: #7c3aed;
+  --brand-2: #22c55e;
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --max: 1080px;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: rgba(15, 23, 42, 0.04);
+  --surface-2: rgba(15, 23, 42, 0.08);
+  --text: rgba(15, 23, 42, 0.92);
+  --muted: rgba(15, 23, 42, 0.72);
+  --border: rgba(15, 23, 42, 0.14);
+  --shadow: 0 12px 40px rgba(2, 6, 23, 0.12);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
+  background:
+    radial-gradient(1200px 700px at 15% 5%, rgba(124, 58, 237, 0.22), transparent 55%),
+    radial-gradient(900px 600px at 85% 10%, rgba(34, 197, 94, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 50% 110%, rgba(56, 189, 248, 0.12), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+pre {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace;
+}
+
+pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: auto;
+}
+
+@media (prefers-color-scheme: light) {
+  pre {
+    background: rgba(15, 23, 42, 0.06);
+  }
+}
+
+.container {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 18px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  width: auto;
+  height: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  z-index: 50;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme='light'] .topbar {
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.brand svg {
+  width: 22px;
+  height: 22px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nav-links a {
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+.nav-links a[aria-current='page'] {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.nav-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  text-decoration: none;
+}
+
+.button:hover {
+  text-decoration: none;
+  background: var(--surface-2);
+}
+
+.button.primary {
+  border-color: rgba(124, 58, 237, 0.55);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.92), rgba(34, 197, 94, 0.58));
+}
+
+.button.primary:hover {
+  filter: brightness(1.05);
+}
+
+.hero {
+  padding: 54px 0 34px;
+}
+
+.hero h1 {
+  font-size: clamp(34px, 4.4vw, 54px);
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.6px;
+}
+
+.hero p {
+  max-width: 70ch;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 1.06rem;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.section {
+  padding: 28px 0;
+}
+
+.section h2 {
+  margin: 0 0 12px;
+  font-size: 1.45rem;
+  letter-spacing: -0.2px;
+}
+
+.section p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.card {
+  grid-column: span 12;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow);
+}
+
+[data-theme='light'] .card {
+  background: rgba(248, 250, 252, 0.65);
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.card p {
+  margin-top: 8px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.split > * {
+  grid-column: span 12;
+}
+
+.kbd {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-bottom-color: rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+th {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='light'] th {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.footer {
+  padding: 40px 0 50px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+.footer p {
+  margin: 0;
+}
+
+@media (min-width: 740px) {
+  .card {
+    padding: 18px;
+  }
+
+  .grid .card {
+    grid-column: span 6;
+  }
+}
+
+@media (min-width: 980px) {
+  .grid .card {
+    grid-column: span 4;
+  }
+
+  .split > :first-child {
+    grid-column: span 7;
+  }
+
+  .split > :last-child {
+    grid-column: span 5;
+  }
+}

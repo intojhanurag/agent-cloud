@@ -632,6 +632,7 @@ Built with:
 ## Support
 
 - **Documentation**: [Read the docs](./docs/)
+- **Website (local landing)**: [Website app](./website/) (follow `website/README.md` to preview)
 - **Issues**: [GitHub Issues](https://github.com/intojhanurag/agent-cloud/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/intojhanurag/agent-cloud/discussions)
 

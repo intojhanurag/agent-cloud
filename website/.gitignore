@@ -1,0 +1,9 @@
+# Website build and hosting outputs
+.cache/
+.astro/
+.next/
+out/
+build/
+dist/
+.vercel/
+.netlify/
