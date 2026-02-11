@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import 'dotenv/config';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { displayBanner } from './banner.js';
@@ -33,9 +34,13 @@ async function main() {
         program
             .command('analyze')
             .description('Analyze your project structure and recommend cloud services')
+            .option('-p, --path <directory>', 'Path to project directory (default: current directory)')
             .option('--local', 'Local-only analysis without AI (no API key needed)')
             .option('--ai', 'Use AI for deep analysis (requires API key)')
             .action(async (options) => {
+                if (options.path) {
+                    process.chdir(options.path);
+                }
                 await analyzeCommand({ local: options.local, ai: options.ai });
             });
 
