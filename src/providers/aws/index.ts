@@ -1,5 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
+import { sanitizeResourceName, sanitizePath } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
 
@@ -67,9 +69,10 @@ export class AWSProvider {
         containerPort?: number;
     }): Promise<DeploymentResult> {
         const { appName, containerPort = 3000 } = options;
-        const clusterName = `${appName}-cluster`;
-        const serviceName = `${appName}-service`;
-        const taskFamily = `${appName}-task`;
+        const safeName = sanitizeResourceName(appName);
+        const clusterName = `${safeName}-cluster`;
+        const serviceName = `${safeName}-service`;
+        const taskFamily = `${safeName}-task`;
 
         try {
             console.log('\n🚀 Deploying to AWS ECS Fargate...\n');
@@ -103,7 +106,7 @@ export class AWSProvider {
             };
 
             const taskDefFile = '/tmp/task-definition.json';
-            require('fs').writeFileSync(taskDefFile, JSON.stringify(taskDef, null, 2));
+            fs.writeFileSync(taskDefFile, JSON.stringify(taskDef, null, 2));
 
             const { stdout: taskResult } = await execAsync(
                 `aws ecs register-task-definition --cli-input-json file://${taskDefFile} --region ${this.config.region}`
@@ -260,7 +263,7 @@ export class AWSProvider {
         buildDir: string;
     }): Promise<DeploymentResult> {
         const { siteName, buildDir } = options;
-        const bucketName = `${siteName}-${Date.now()}`;
+        const bucketName = sanitizeResourceName(`${siteName}-${Date.now()}`);
 
         try {
             console.log('\n🚀 Deploying to AWS S3 + CloudFront...\n');

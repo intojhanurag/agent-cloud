@@ -132,11 +132,9 @@ Provide your validation report in structured JSON:
 - **warning**: May cause issues, should be fixed
 - **info**: Optional improvements, nice to have`,
 
-  // Multi-model support: Gemini first, OpenAI fallback
-  model: [
-    { model: 'google/gemini-1.5-flash' },
-    { model: 'openai/gpt-4o-mini' },
-  ],
+  model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    ? 'google/gemini-2.0-flash'
+    : 'openai/gpt-4o-mini',
 
   tools: {
     cliCheckerTool,

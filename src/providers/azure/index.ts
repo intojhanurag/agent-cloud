@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { sanitizeResourceName } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
 

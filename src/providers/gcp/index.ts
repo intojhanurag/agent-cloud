@@ -1,5 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
+import { sanitizeResourceName } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
 
@@ -302,7 +304,7 @@ export class GCPProvider {
 env: standard
 service: ${appName}`;
 
-            require('fs').writeFileSync(serviceConfig, appYaml);
+            fs.writeFileSync(serviceConfig, appYaml);
 
             // Deploy
             console.log('\n🎯 Deploying application...');
@@ -363,7 +365,7 @@ service: ${appName}`;
                 },
             };
 
-            require('fs').writeFileSync('firebase.json', JSON.stringify(firebaseConfig, null, 2));
+            fs.writeFileSync('firebase.json', JSON.stringify(firebaseConfig, null, 2));
 
             // Deploy
             console.log('\n📤 Deploying to Firebase...');

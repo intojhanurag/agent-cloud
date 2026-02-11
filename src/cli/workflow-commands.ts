@@ -1,25 +1,35 @@
 import chalk from 'chalk';
-import { displayHeader, displaySuccess, displayError, displayInfo } from './banner.js';
+import inquirer from 'inquirer';
+import { displayHeader, displaySuccess, displayError, displayInfo, displayWarning } from './banner.js';
 import { Spinner } from '../utils/progress.js';
 import type { CloudProvider } from '../types/index.js';
+import { getConfigManager } from '../utils/config.js';
+import { collectDeploymentRequirements } from './prompts.js';
 
 /**
  * Real Status Command - Uses Validator Agent
- * Phase 3.2 Integration
  */
 export async function realStatusCommand(options?: { cloud?: CloudProvider }): Promise<void> {
     try {
         displayHeader('Environment Status Check');
 
-        // Determine which cloud to check
-        const cloud = options?.cloud || 'aws';
+        const cloud = options?.cloud || getConfigManager().getDefaultCloud() || 'aws';
         console.log(chalk.cyan(`  Checking ${chalk.bold(cloud.toUpperCase())} environment...\n`));
 
-        // Import Mastra instance
+        // Check for API key first
+        const hasKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY;
+        if (!hasKey) {
+            displayWarning('No AI API key configured - running basic checks only');
+            console.log();
+
+            // Run basic checks without AI
+            await runBasicStatusCheck(cloud);
+            return;
+        }
+
         const { mastra } = await import('../mastra/index.js');
         const validator = mastra.getAgent('validatorAgent');
 
-        // Run validation with spinner
         const spinner = new Spinner('Running environment checks...');
         spinner.start();
 
@@ -65,19 +75,47 @@ Provide a comprehensive JSON report.`;
                 console.log(`  ${icon} ${chalk.bold('Authentication')}: ${checks.authentication.message || 'Checked'}`);
             }
 
+            if (checks.envVars) {
+                const icon = checks.envVars.passed ? '✅' : '❌';
+                console.log(`  ${icon} ${chalk.bold('Env Variables')}: ${checks.envVars.message || 'Checked'}`);
+            }
+
             if (checks.network) {
                 const icon = checks.network.passed ? '✅' : '❌';
                 console.log(`  ${icon} ${chalk.bold('Network')}: ${checks.network.message || 'Checked'}`);
             }
 
+            if (checks.permissions) {
+                const icon = checks.permissions.passed ? '✅' : '❌';
+                console.log(`  ${icon} ${chalk.bold('Permissions')}: ${checks.permissions.message || 'Checked'}`);
+            }
+
             console.log();
+
+            // Show issues if any
+            if (validation.issues && validation.issues.length > 0) {
+                displayInfo('Issues found:');
+                for (const issue of validation.issues) {
+                    const icon = issue.severity === 'error' ? '❌' : issue.severity === 'warning' ? '⚠️' : 'ℹ️';
+                    console.log(`  ${icon} ${issue.message}`);
+                    if (issue.solution) {
+                        console.log(chalk.gray(`     Fix: ${issue.solution}`));
+                    }
+                }
+                console.log();
+            }
+
             if (validation.status === 'ready') {
-                displaySuccess('Environment is ready for deployment! 🚀');
+                displaySuccess('Environment is ready for deployment!');
+            } else if (validation.status === 'partially_ready') {
+                displayWarning('Environment needs some configuration. See issues above.');
             } else {
-                displayError('Environment needs configuration');
+                displayError('Environment needs setup. See issues above.');
             }
 
         } catch {
+            // Display raw response if JSON parsing fails
+            console.log(chalk.gray(fullResponse));
             displaySuccess('Environment checks completed');
         }
 
@@ -85,25 +123,97 @@ Provide a comprehensive JSON report.`;
 
     } catch (error) {
         displayError('Status check failed');
-        console.error(chalk.red(`  Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        if (error instanceof Error) {
+            if (error.message.includes('API') || error.message.includes('key')) {
+                console.log(chalk.yellow('  Run ') + chalk.bold('cloud-agent init') + chalk.yellow(' to configure your API key.'));
+            } else {
+                console.log(chalk.red(`  ${error.message}`));
+            }
+        }
     }
 }
 
 /**
- * Real Deploy Command - Uses Deployment Workflow
- * Phase 3.2 Integration
+ * Basic status check without AI
+ */
+async function runBasicStatusCheck(cloud: string): Promise<void> {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    const checks = {
+        aws: { cmd: 'aws --version', auth: 'aws sts get-caller-identity' },
+        gcp: { cmd: 'gcloud --version', auth: 'gcloud auth list --filter=status:ACTIVE --format="value(account)"' },
+        azure: { cmd: 'az --version', auth: 'az account show' },
+    };
+
+    const check = checks[cloud as keyof typeof checks];
+    if (!check) {
+        displayError(`Unknown cloud provider: ${cloud}`);
+        return;
+    }
+
+    // Check CLI
+    try {
+        const { stdout } = await execAsync(check.cmd);
+        const version = stdout.trim().split('\n')[0];
+        console.log(chalk.green(`  ✓ CLI installed`) + chalk.gray(` (${version.substring(0, 50)})`));
+    } catch {
+        console.log(chalk.red(`  ✗ CLI not installed`));
+        console.log(chalk.gray(`    Install: cloud-agent info for links`));
+    }
+
+    // Check auth
+    try {
+        await execAsync(check.auth);
+        console.log(chalk.green(`  ✓ Authenticated`));
+    } catch {
+        console.log(chalk.red(`  ✗ Not authenticated`));
+        const authCmds = { aws: 'aws configure', gcp: 'gcloud auth login', azure: 'az login' };
+        console.log(chalk.gray(`    Run: ${authCmds[cloud as keyof typeof authCmds]}`));
+    }
+
+    console.log();
+}
+
+/**
+ * Real Deploy Command - Uses Deployment Workflow with interactive approval
  */
 export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?: boolean }): Promise<void> {
     try {
         displayHeader('Cloud Deployment');
 
-        const cloud = options?.cloud || 'aws';
+        // Use default cloud from config if not specified
+        let cloud = options?.cloud;
+        if (!cloud) {
+            const defaultCloud = getConfigManager().getDefaultCloud();
+            if (defaultCloud) {
+                cloud = defaultCloud;
+                displayInfo(`Using default cloud: ${cloud.toUpperCase()}`);
+            }
+        }
+
+        // If still no cloud, ask user
+        if (!cloud) {
+            const requirements = await collectDeploymentRequirements({ yes: options?.yes });
+            cloud = requirements.cloudProvider;
+        }
+
         const projectPath = process.cwd();
 
         console.log(chalk.cyan(`  Target: ${chalk.bold(cloud.toUpperCase())}`));
         console.log(chalk.gray(`  Project: ${projectPath}\n`));
 
-        // Start workflow
+        // Check for API key
+        const hasKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.OPENAI_API_KEY;
+        if (!hasKey) {
+            displayError('No AI API key configured');
+            console.log(chalk.yellow('  The deploy command needs AI to analyze your project and generate a plan.'));
+            console.log(chalk.white('  Run ') + chalk.bold('cloud-agent init') + chalk.white(' to set up your API key.'));
+            console.log();
+            return;
+        }
+
         displayInfo('Starting deployment workflow...');
         console.log();
 
@@ -112,8 +222,7 @@ export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?:
 
         const run = await workflow.createRun();
 
-        // Start the workflow with spinner
-        const spinner = new Spinner('Running deployment phases...');
+        const spinner = new Spinner('Analyzing project and generating plan...');
         spinner.start();
 
         const result = await run.start({
@@ -123,76 +232,116 @@ export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?:
             },
         });
 
-        spinner.succeed('Workflow initiated');
+        spinner.succeed('Plan generated');
         console.log();
 
-        // Check if workflow suspended for approval
+        // Handle workflow suspension (approval gate)
         if (result.status === 'suspended') {
-            // Access suspend data - Mastra provides suspendPayload
             const suspendData = result.suspendPayload as any;
 
             if (suspendData) {
-                displayInfo('Deployment Plan:');
-                console.log();
-                console.log(chalk.bold('  Services:'));
+                // Display the plan
+                displayHeader('Deployment Plan');
+
                 if (suspendData.services && Array.isArray(suspendData.services)) {
+                    displayInfo('Services:');
                     suspendData.services.forEach((service: string) => {
-                        console.log(chalk.gray(`    • ${service}`));
+                        console.log(chalk.gray(`    - ${service}`));
                     });
+                    console.log();
                 }
-                console.log();
+
                 console.log(chalk.bold(`  Estimated Cost: ${chalk.green(`$${suspendData.estimatedCost || 'TBD'}`)} /month`));
                 console.log();
-                console.log(chalk.bold('  Commands to execute:'));
-                const commands = suspendData.commands || [];
-                commands.slice(0, 5).forEach((cmd: string) => {
-                    console.log(chalk.gray(`    ${cmd}`));
-                });
-                console.log();
 
-                // Auto-approve if --yes flag
+                if (suspendData.commands && suspendData.commands.length > 0) {
+                    displayInfo('Commands to execute:');
+                    const cmds = suspendData.commands.slice(0, 8);
+                    cmds.forEach((cmd: string) => {
+                        if (cmd.trim()) {
+                            console.log(chalk.gray(`    ${cmd}`));
+                        }
+                    });
+                    if (suspendData.commands.length > 8) {
+                        console.log(chalk.gray(`    ... and ${suspendData.commands.length - 8} more`));
+                    }
+                    console.log();
+                }
+
+                // Interactive approval or auto-approve
+                let approved = false;
+
                 if (options?.yes) {
-                    displayInfo('Auto-approving deployment (--yes flag set)...');
+                    displayInfo('Auto-approving (--yes flag set)');
+                    approved = true;
+                } else {
+                    // Ask for approval interactively
+                    const { confirm } = await inquirer.prompt([{
+                        type: 'confirm',
+                        name: 'confirm',
+                        message: chalk.yellow('Proceed with this deployment?'),
+                        default: false,
+                    }]);
+                    approved = confirm;
+                }
 
-                    const resumeSpinner = new Spinner('Resuming deployment...');
-                    resumeSpinner.start();
+                if (!approved) {
+                    displayError('Deployment cancelled');
+                    return;
+                }
 
+                // Resume workflow with approval
+                const resumeSpinner = new Spinner('Deploying to ' + cloud.toUpperCase() + '...');
+                resumeSpinner.start();
+
+                try {
                     const resumeResult = await run.resume({
                         step: 'deployment',
                         resumeData: { approved: true },
                     });
 
-                    resumeSpinner.succeed('Deployment resumed');
+                    resumeSpinner.succeed('Deployment complete');
 
                     if (resumeResult.status === 'success') {
-                        // Mastra provides result property for success
                         const deploymentResult = resumeResult.result as any;
-                        displaySuccess('✨ Deployment completed successfully!');
+                        displaySuccess('Deployment completed successfully!');
                         if (deploymentResult?.deploymentUrl) {
-                            console.log(chalk.green(`\n  🌐 URL: ${deploymentResult.deploymentUrl}\n`));
+                            console.log(chalk.green(`  URL: ${deploymentResult.deploymentUrl}`));
                         }
+                    } else {
+                        displayError(`Deployment finished with status: ${resumeResult.status}`);
                     }
-                } else {
-                    displayInfo('Workflow suspended - waiting for approval');
-                    console.log(chalk.gray('\n  To approve and continue deployment:'));
-                    console.log(chalk.gray('  1. The workflow is saved'));
-                    console.log(chalk.gray('  2. In Phase 4, you\'ll be able to approve/reject'));
-                    console.log(chalk.gray('  3. For now, use --yes flag to auto-approve\n'));
+                } catch (resumeError) {
+                    resumeSpinner.fail('Deployment failed');
+                    displayError('Deployment failed during execution');
+                    if (resumeError instanceof Error) {
+                        console.log(chalk.red(`  ${resumeError.message}`));
+                    }
                 }
             }
         } else if (result.status === 'success') {
-            displaySuccess('✨ Deployment completed!');
-            // Access result for final output
+            displaySuccess('Deployment completed!');
             const finalResult = result.result as any;
             if (finalResult?.deploymentUrl) {
-                console.log(chalk.green(`\n  🌐 URL: ${finalResult.deploymentUrl}\n`));
+                console.log(chalk.green(`  URL: ${finalResult.deploymentUrl}`));
             }
         } else {
-            displayError(`Workflow status: ${result.status}`);
+            displayError(`Workflow ended with status: ${result.status}`);
+            if ('error' in result && result.error) {
+                console.log(chalk.red(`  ${result.error.message}`));
+            }
         }
+
+        console.log();
 
     } catch (error) {
         displayError('Deployment failed');
-        console.error(chalk.red(`  Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        if (error instanceof Error) {
+            if (error.message.includes('API') || error.message.includes('key')) {
+                console.log(chalk.yellow('  Run ') + chalk.bold('cloud-agent init') + chalk.yellow(' to configure your API key.'));
+            } else {
+                console.log(chalk.red(`  ${error.message}`));
+            }
+        }
     }
 }

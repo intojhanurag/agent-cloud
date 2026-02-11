@@ -92,12 +92,11 @@ Provide your analysis in a structured JSON format:
 - If you can't determine something, say so explicitly
 - Focus on practical, deployable solutions`,
 
-  // Multi-model support: Try Gemini first (free tier!), fallback to OpenAI
-  // Requires GOOGLE_API_KEY or OPENAI_API_KEY in .env
-  model: [
-    { model: 'google/gemini-1.5-flash' },  // Primary: Fast & has free tier
-    { model: 'openai/gpt-4o-mini' },       // Fallback: Paid but reliable
-  ],
+  // Uses Google Gemini (free tier available) or falls back to OpenAI
+  // Set GOOGLE_GENERATIVE_AI_API_KEY or OPENAI_API_KEY in .env
+  model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    ? 'google/gemini-2.0-flash'
+    : 'openai/gpt-4o-mini',
 
   tools: {
     fileSystemTool,
