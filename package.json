@@ -12,19 +12,44 @@
     "build": "tsc && mastra build",
     "start": "node dist/cli/index.js",
     "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
     "cli": "tsx src/cli/index.ts",
-    "cli:build": "node dist/cli/index.js"
+    "cli:build": "node dist/cli/index.js",
+    "docs:dev": "cd docs && npm run dev",
+    "docs:build": "cd docs && npm run build",
+    "prepublishOnly": "npm run type-check && npm run test:run && npm run build"
   },
   "keywords": [
     "ai",
     "cloud",
     "deployment",
     "mastra",
-    "cli"
+    "cli",
+    "aws",
+    "gcp",
+    "azure",
+    "devops"
   ],
-  "author": "",
+  "author": "intojhanurag",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/intojhanurag/agent-cloud.git"
+  },
+  "homepage": "https://github.com/intojhanurag/agent-cloud#readme",
+  "bugs": {
+    "url": "https://github.com/intojhanurag/agent-cloud/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@mastra/core": "^1.0.1",
     "@mastra/libsql": "^1.0.0",
@@ -44,6 +69,7 @@
     "@types/gradient-string": "^1.1.6",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.11.16",
+    "@vitest/coverage-v8": "^1.2.2",
     "mastra": "^1.0.1",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3",
