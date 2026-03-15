@@ -1,0 +1,217 @@
+---
+title: Contributing
+description: How to contribute to Agent Cloud -- development setup, project structure, and testing.
+---
+
+Agent Cloud is an open-source project and contributions are welcome. This guide covers how to set up a development environment, understand the codebase, and submit changes.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm (comes with Node.js)
+- Git
+- A code editor (VS Code recommended)
+- Docker (optional, for testing container deployments)
+- At least one cloud CLI installed (optional, for end-to-end testing)
+
+### Clone and Setup
+
+```bash
+git clone https://github.com/intojhanurag/agent-cloud.git
+cd agent-cloud
+npm install
+```
+
+### Create a `.env` file
+
+```bash
+# For AI-powered features (optional for development)
+GOOGLE_GENERATIVE_AI_API_KEY=your-key
+# OR
+OPENAI_API_KEY=your-key
+```
+
+### Run from Source
+
+```bash
+# Using tsx (TypeScript executor, no build step needed)
+npm run cli
+
+# Or with arguments
+npx tsx src/cli/index.ts analyze
+npx tsx src/cli/index.ts deploy --cloud aws
+```
+
+### Build and Test
+
+```bash
+# Type-check without emitting
+npm run type-check
+
+# Full build (TypeScript + Mastra)
+npm run build
+
+# Run tests
+npm test
+
+# Run the built CLI
+npm run cli:build
+```
+
+## Project Structure
+
+```
+agent-cloud/
+  src/
+    cli/                    # CLI layer (Commander.js)
+      index.ts              # Entry point, command registration
+      commands.ts           # init, analyze, history, info
+      workflow-commands.ts   # deploy, status (uses Mastra)
+      banner.ts             # Terminal UI helpers
+      error-handler.ts      # Global error handling
+      prompts.ts            # Inquirer prompt definitions
+
+    mastra/                 # AI layer (Mastra framework)
+      index.ts              # Mastra instance wiring
+      agents/
+        analyzer.ts         # Project analysis agent
+        deployment.ts       # Deployment planning agent
+        validator.ts        # Environment validation agent
+      tools/
+        index.ts            # File system & dependency tools
+        deployment.ts       # Service mapping, cost, commands
+        validator.ts        # CLI, auth, env, network checks
+        executor.ts         # Shell command execution
+      workflows/
+        deployment.ts       # 5-phase deployment workflow
+
+    providers/              # Cloud execution layer
+      aws/index.ts          # AWS (ECS, Lambda, S3)
+      gcp/index.ts          # GCP (Cloud Run, Functions, Firebase)
+      azure/index.ts        # Azure (Container Apps, Functions, etc.)
+
+    types/
+      index.ts              # Shared TypeScript types
+
+    utils/
+      config.ts             # Configuration & deployment history
+      logger.ts             # File-based logging
+      error-handler.ts      # Custom error classes
+      progress.ts           # Spinners & progress bars
+      shell.ts              # Input sanitization
+
+  docs/                     # This documentation site (Starlight)
+  package.json
+  tsconfig.json
+  mastra.config.ts          # Mastra framework config
+```
+
+## Development Workflow
+
+### Adding a New CLI Command
+
+1. Define the command handler in `src/cli/commands.ts` (or `workflow-commands.ts` if it uses AI)
+2. Register the command in `src/cli/index.ts` using Commander.js
+3. Add types if needed in `src/types/index.ts`
+
+### Adding a New Tool
+
+1. Create the tool with `createTool()` from `@mastra/core/agent`
+2. Define `inputSchema` and `outputSchema` with Zod
+3. Implement the `execute` function
+4. Add the tool to the relevant agent's `tools` object
+5. The agent will automatically have access to the new tool
+
+### Adding a New Cloud Provider
+
+1. Create a new directory under `src/providers/your-provider/`
+2. Implement the provider class with methods for each deployment target
+3. Add authentication and cleanup methods
+4. Register the provider in the deployment workflow
+5. Update the service mapper tool with new service mappings
+6. Add the provider to the `CloudProvider` type union
+
+### Modifying Agent Behavior
+
+Agent behavior is primarily controlled by the `instructions` string in the agent definition. To change how an agent works:
+
+1. Edit the `instructions` field in the relevant agent file
+2. Be specific about the expected output format
+3. Test with different project types to ensure the changes work broadly
+
+## Code Conventions
+
+- **TypeScript** with strict mode enabled
+- **ESM modules** (`"type": "module"` in package.json)
+- **Zod** for all runtime schema validation
+- **async/await** for all asynchronous operations
+- **chalk** for terminal colors (no raw ANSI codes)
+- File names use kebab-case
+- Types and interfaces use PascalCase
+- Functions and variables use camelCase
+
+## Testing
+
+Tests are run with [Vitest](https://vitest.dev/):
+
+```bash
+# Run all tests
+npm test
+
+# Run in watch mode
+npx vitest --watch
+
+# Run a specific test file
+npx vitest src/utils/shell.test.ts
+```
+
+### What to Test
+
+- **Utility functions** (shell sanitization, config management) -- unit tests
+- **Tool execute functions** -- unit tests with mock file systems
+- **CLI command handlers** -- integration tests (consider mocking AI calls)
+- **Provider classes** -- integration tests (mock shell commands)
+
+### Testing Tips
+
+- Mock `child_process.exec` when testing provider classes to avoid real cloud calls
+- Mock the AI model responses when testing workflow integration
+- Use temporary directories for file system tests
+- The `ConfigManager` can be instantiated with a custom path for isolated testing
+
+## Submitting Changes
+
+1. **Fork** the repository on GitHub
+2. **Create a branch** for your change: `git checkout -b feature/my-feature`
+3. **Make your changes** following the conventions above
+4. **Add tests** for new functionality
+5. **Run the test suite**: `npm test`
+6. **Type-check**: `npm run type-check`
+7. **Commit** with a descriptive message
+8. **Push** your branch and open a Pull Request
+
+### Pull Request Guidelines
+
+- Keep PRs focused on a single change
+- Include a description of what changed and why
+- Add or update tests as appropriate
+- Make sure the type checker and tests pass
+- Link related issues if applicable
+
+## Areas for Contribution
+
+Here are some areas where contributions would be valuable:
+
+- **New cloud providers** (DigitalOcean, Vercel, Fly.io, Railway)
+- **New language detection** (Rust, Java, Ruby, PHP)
+- **Improved cost estimation** with real-time pricing data
+- **Better Dockerfile generation** for more frameworks
+- **Test coverage** for existing code
+- **Documentation** improvements and corrections
+- **Bug fixes** from GitHub issues
+
+## License
+
+Agent Cloud is licensed under the MIT License. By contributing, you agree that your contributions will be licensed under the same terms.

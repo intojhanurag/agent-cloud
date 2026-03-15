@@ -1,0 +1,98 @@
+---
+title: "cloud-agent init"
+description: "Command reference for cloud-agent init -- the interactive setup wizard."
+---
+
+The `init` command runs an interactive setup wizard that helps you configure Agent Cloud for first use.
+
+## Usage
+
+```bash
+cloud-agent init
+```
+
+No flags or arguments. The wizard guides you through each step interactively.
+
+## What It Does
+
+The init command walks through three steps:
+
+### Step 1: AI API Key Setup
+
+Checks for existing API keys in your environment:
+- `GOOGLE_GENERATIVE_AI_API_KEY` -- Google Gemini (free tier available)
+- `OPENAI_API_KEY` -- OpenAI (paid)
+
+If no key is found, it prompts you to:
+1. Choose a provider (Google Gemini or OpenAI)
+2. Enter your API key (masked input)
+3. Save the key to a `.env` file in the current directory
+
+If a key is already detected, it reports which provider is configured and skips this step.
+
+### Step 2: Cloud CLI Detection
+
+Automatically detects which cloud CLIs are installed by running:
+- `aws --version`
+- `gcloud --version`
+- `az --version`
+
+For each detected CLI, it displays the version. For missing CLIs, it shows installation links:
+- AWS: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+- GCP: https://cloud.google.com/sdk/docs/install
+- Azure: https://learn.microsoft.com/cli/azure/install-azure-cli
+
+### Step 3: Default Cloud Preference
+
+If at least one cloud CLI is detected, prompts you to set a default cloud provider. This default is saved to `.agent-cloud/config.json` and used when you run `cloud-agent deploy` without the `--cloud` flag.
+
+## Example Session
+
+```
+  ╔══════════════════════════════════════╗
+  ║         Setup Wizard                 ║
+  ╚══════════════════════════════════════╝
+
+  ℹ No .env file found - creating one
+
+  ℹ Step 1: AI API Key
+    An AI API key powers the smart project analysis.
+    Get a free key: https://aistudio.google.com/app/apikey
+
+  ? Would you like to set up an AI API key now? Yes
+  ? Which AI provider? Google Gemini (free tier available)
+  ? Enter your GOOGLE_GENERATIVE_AI_API_KEY: ********
+  ✓ API key saved to .env
+
+  ℹ Step 2: Cloud CLI Detection
+
+    ✓ AWS CLI (aws-cli/2.15.0)
+    ✓ Google Cloud SDK (Google Cloud SDK 460.0.0)
+    ○ Azure CLI - not installed
+
+  ✓ 2 cloud CLI(s) detected
+
+  ℹ Step 3: Preferences
+
+  ? Set a default cloud provider? AWS
+  ℹ Default cloud set to AWS
+
+  ✓ Setup complete!
+  Next steps:
+    cloud-agent analyze    Analyze your project
+    cloud-agent deploy     Deploy to the cloud
+```
+
+## Files Modified
+
+| File | Purpose |
+|------|---------|
+| `.env` | API key is appended or updated |
+| `.agent-cloud/config.json` | Default cloud preference is saved |
+
+## Notes
+
+- The init command does not require an API key to run. Its purpose is to help you set one up.
+- It does not install any cloud CLIs for you -- it only detects what is already installed.
+- You can re-run `init` at any time to change your configuration.
+- If a `.env` file already exists, the API key line is replaced (not duplicated).

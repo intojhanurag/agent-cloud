@@ -1,0 +1,37 @@
+---
+title: Welcome to Agent Cloud
+description: AI-powered multi-cloud deployment CLI that analyzes your project and deploys it to AWS, GCP, or Azure with a single command.
+---
+
+## What is Agent Cloud?
+
+Agent Cloud is an open-source CLI tool that uses AI agents to analyze any software project and deploy it to the cloud. You point it at a codebase, and it detects your technology stack, recommends the right cloud services, generates a deployment plan, asks for your approval, and executes real cloud commands.
+
+## Key Features
+
+- **AI-Powered Analysis** -- Three specialized AI agents analyze your project, plan the deployment, and validate your environment. Built on the Mastra AI framework with Gemini or OpenAI models.
+- **Multi-Cloud Support** -- Deploy to AWS (ECS, Lambda, S3), Google Cloud (Cloud Run, Functions, Firebase), or Azure (Container Apps, Functions, Static Web Apps) from a single interface.
+- **Human-in-the-Loop** -- Every deployment plan is presented for your review before execution. The workflow suspends, shows you the services and estimated costs, and only proceeds after your explicit approval.
+- **Works Offline Too** -- The `analyze` command works without any API key by scanning your project files directly. AI analysis is opt-in for deeper insights.
+
+## Quick Example
+
+```bash
+# Set up API keys and detect cloud CLIs
+cloud-agent init
+
+# Analyze your project (works without AI by default)
+cloud-agent analyze
+
+# Deploy with AI-powered planning and approval
+cloud-agent deploy --cloud aws
+```
+
+The deploy command triggers a 5-phase workflow: environment validation, project analysis, deployment planning, human approval, and real cloud execution.
+
+## Next Steps
+
+- [Installation](/docs/guides/installation/) -- Get agent-cloud installed
+- [Quick Start](/docs/guides/quickstart/) -- Deploy in 3 commands
+- [Configuration](/docs/guides/configuration/) -- Set up API keys and preferences
+- [Architecture](/docs/advanced/architecture/) -- Understand the system design

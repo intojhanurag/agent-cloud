@@ -1,0 +1,223 @@
+---
+title: Troubleshooting
+description: Common errors, their causes, and how to fix them when using Agent Cloud.
+---
+
+This page covers the most common issues you might encounter when using Agent Cloud and how to resolve them.
+
+## API Key Issues
+
+### "No AI API key configured"
+
+**When:** Running `cloud-agent deploy` or `cloud-agent analyze --ai`
+
+**Cause:** No `GOOGLE_GENERATIVE_AI_API_KEY` or `OPENAI_API_KEY` found in the environment.
+
+**Fix:**
+
+```bash
+# Option 1: Run the setup wizard
+cloud-agent init
+
+# Option 2: Add to .env manually
+echo "GOOGLE_GENERATIVE_AI_API_KEY=your-key" >> .env
+
+# Option 3: Export in your shell
+export GOOGLE_GENERATIVE_AI_API_KEY=your-key
+```
+
+### "Your API key may be invalid or expired"
+
+**When:** AI analysis or deployment fails with authentication errors
+
+**Fix:**
+1. Verify your key at [Google AI Studio](https://aistudio.google.com/app/apikey) or [OpenAI Dashboard](https://platform.openai.com/api-keys)
+2. Re-run `cloud-agent init` to update the key
+3. Check that the `.env` file does not have extra spaces or quotes around the key
+
+### "Rate exceeded" or "429 Too Many Requests"
+
+**When:** AI operations fail due to rate limiting
+
+**Fix:**
+- Wait a few seconds and try again
+- If using the Gemini free tier, you may be hitting the requests-per-minute limit
+- Consider upgrading to a paid tier or switching to OpenAI
+
+## Cloud CLI Issues
+
+### "CLI not installed"
+
+**When:** Running `cloud-agent status` or `cloud-agent deploy`
+
+**Fix:** Install the appropriate CLI:
+
+```bash
+# AWS
+# https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+# GCP
+# https://cloud.google.com/sdk/docs/install
+
+# Azure
+# https://learn.microsoft.com/cli/azure/install-azure-cli
+```
+
+Then verify:
+
+```bash
+aws --version    # or gcloud --version / az --version
+```
+
+### "Not authenticated"
+
+**When:** Cloud operations fail with permission or identity errors
+
+**Fix:**
+
+```bash
+# AWS
+aws configure
+# Or: aws sso login
+
+# GCP
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Azure
+az login
+az account set --subscription YOUR_SUBSCRIPTION_ID
+```
+
+### "AccessDeniedException" / "PERMISSION_DENIED" / "Insufficient permissions"
+
+**When:** Deployment or status check fails despite being authenticated
+
+**Fix:** Your account lacks the required IAM permissions. See the provider-specific pages for the exact permissions needed:
+- [AWS permissions](/docs/providers/aws/#iam-permissions-required)
+- [GCP roles](/docs/providers/gcp/#required-roles)
+- [Azure permissions](/docs/providers/azure/#required-permissions)
+
+## Docker Issues
+
+### "Cannot connect to the Docker daemon"
+
+**When:** Deploying a container-based project
+
+**Cause:** Docker is not running on your machine.
+
+**Fix:**
+- Start Docker Desktop (macOS/Windows) or the Docker service (Linux)
+- On Linux: `sudo systemctl start docker`
+- Verify: `docker info`
+
+### "Docker build failed"
+
+**When:** Agent Cloud tries to build a Docker image from your project
+
+**Fix:**
+1. Make sure your `Dockerfile` is valid by testing locally: `docker build -t test .`
+2. If you do not have a Dockerfile, Agent Cloud will try to generate one. Check the generated Dockerfile in your project directory.
+3. Ensure your build context is not too large. Add unnecessary files to `.dockerignore`.
+
+## Deployment Issues
+
+### "Deployment cancelled"
+
+**When:** You pressed `n` at the approval prompt
+
+**This is expected behavior.** No resources were created. Run `cloud-agent deploy` again when you are ready.
+
+### Deployment hangs
+
+**Possible causes:**
+- Cloud API is slow or timing out
+- Docker build is taking a long time (large project or many dependencies)
+- Network connectivity issues
+
+**Fix:**
+- Check your internet connection
+- Try deploying to a region closer to you
+- Check the cloud provider's status page for outages
+
+### "Storage account name already taken" (Azure)
+
+**Cause:** Azure storage account names must be globally unique across all Azure customers.
+
+**Fix:** Deploy with a custom app name:
+
+```bash
+cloud-agent deploy --cloud azure --app-name my-unique-name-123
+```
+
+### "The subscription is not registered to use namespace" (Azure)
+
+**Fix:** Register the required provider:
+
+```bash
+az provider register --namespace Microsoft.App        # For Container Apps
+az provider register --namespace Microsoft.Web         # For Functions/App Service
+```
+
+### "Cloud Build API has not been enabled" (GCP)
+
+**Fix:**
+
+```bash
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable run.googleapis.com
+```
+
+## Analysis Issues
+
+### "Could not determine project type"
+
+**When:** Running `cloud-agent analyze` on an unrecognized project
+
+**Cause:** The project does not have a recognizable manifest file (package.json, requirements.txt, go.mod, or index.html).
+
+**Fix:**
+- Add a `package.json`, `requirements.txt`, or `go.mod` to your project
+- Add a `Dockerfile` (Agent Cloud will classify it as a container project)
+- Use `cloud-agent analyze --ai` for AI-powered detection that can handle unusual structures
+
+### Analysis shows wrong framework
+
+**Cause:** Framework detection is based on dependency names. If your project uses an unusual import pattern, local analysis may misidentify the framework.
+
+**Fix:** Use `cloud-agent analyze --ai` for more accurate detection. The AI agent reads multiple files and uses context to make better judgments.
+
+## General Issues
+
+### "Setup failed"
+
+**When:** `cloud-agent init` encounters an error
+
+**Fix:**
+- Check file write permissions in the current directory
+- Make sure you are not in a read-only filesystem
+- Try running from your project directory (not from `/` or a system directory)
+
+### Logs for debugging
+
+Check the local log files for detailed error information:
+
+```bash
+# Log files are in .agent-cloud/logs/
+ls .agent-cloud/logs/
+
+# View the most recent log
+cat .agent-cloud/logs/agent-cloud-$(date +%Y-%m-%d).log
+```
+
+### Getting help
+
+If none of the above solutions work:
+
+1. Check the [GitHub issues](https://github.com/intojhanurag/agent-cloud/issues) for similar problems
+2. Open a new issue with:
+   - The command you ran
+   - The full error output
+   - Your Node.js version (`node --version`)
+   - Your cloud CLI version (`aws --version` / `gcloud --version` / `az --version`)
+   - Your operating system

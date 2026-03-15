@@ -1,0 +1,244 @@
+---
+title: Architecture
+description: System layers, agent design, and workflow engine internals of Agent Cloud.
+---
+
+Agent Cloud is organized into seven layers, from the user-facing CLI down to the cloud execution layer. This page describes how each layer works and how they connect.
+
+## System Overview
+
+```
+User runs CLI command
+        |
+        v
+  CLI Layer (Commander.js)
+        |
+        v
+  Mastra AI Framework
+   /       |       \
+Agent 1  Agent 2  Agent 3
+(Analyze) (Plan)  (Validate)
+   |        |        |
+  Tools    Tools    Tools
+   |        |        |
+   v        v        v
+  Workflow Engine (suspend/resume)
+        |
+        v
+  Cloud Providers (AWS / GCP / Azure)
+        |
+        v
+  Real shell commands (aws, gcloud, az)
+```
+
+## Layer 1: CLI (`src/cli/`)
+
+The entry point. Built with **Commander.js** for command parsing and **Inquirer.js** for interactive prompts.
+
+Six commands are registered in `src/cli/index.ts`:
+
+| Command | What it does | Needs AI? |
+|---------|-------------|-----------|
+| `init` | Setup wizard -- API keys, cloud CLI detection, preferences | No |
+| `analyze` | Scan project, detect stack, recommend services | No (default) / Yes (`--ai`) |
+| `deploy` | Full deployment pipeline with approval | Yes |
+| `status` | Check environment readiness | Optional |
+| `history` | Show past deployments | No |
+| `info` | Show available cloud providers | No |
+
+Key design decision: the `analyze` command works without any API key by default. It scans `package.json`, `requirements.txt`, `go.mod`, and `Dockerfile` directly. The `--ai` flag opts into AI analysis. This means a user can install the tool and immediately get value without any setup.
+
+**Files:**
+- `index.ts` -- command registration and routing
+- `commands.ts` -- `init`, `analyze`, `history`, `info` implementations
+- `workflow-commands.ts` -- `deploy` and `status` (interact with Mastra agents/workflows)
+- `banner.ts` -- terminal UI helpers (header, success/error/warning display)
+- `error-handler.ts` -- global error handling with actionable messages
+- `prompts.ts` -- Inquirer prompt definitions for interactive flows
+
+## Layer 2: Mastra AI Framework (`src/mastra/`)
+
+The brain of the system. **Mastra** (`@mastra/core`) is an open-source TypeScript framework for building AI agent systems. It provides:
+
+- Agent management (LLM + tools + instructions)
+- Tool definitions (typed functions with Zod schemas)
+- Workflow orchestration (multi-step pipelines with suspend/resume)
+- State persistence (via LibSQL/SQLite)
+
+Everything is wired together in `src/mastra/index.ts`:
+
+```typescript
+export const mastra = new Mastra({
+    agents: { analyzerAgent, deploymentAgent, validatorAgent },
+    workflows: { deploymentWorkflow },
+    storage: new LibSQLStore({ url: 'file:./agent-cloud.db' }),
+});
+```
+
+The CLI imports `mastra` and calls `mastra.getAgent('analyzerAgent')` or `mastra.getWorkflow('deploymentWorkflow')` to access components.
+
+## Layer 3: AI Agents (`src/mastra/agents/`)
+
+Three specialized agents, each with a focused role and its own set of tools:
+
+### Analyzer Agent (`analyzer.ts`)
+
+- **Job:** Understand what a project is
+- **Model:** Google Gemini 2.0 Flash or OpenAI GPT-4o Mini
+- **Tools:** `fileSystemTool`, `fileReaderTool`, `dependencyAnalyzerTool`, `packageJsonParserTool`
+- **Output:** JSON with `projectType`, `runtime`, `framework`, `databases`, `recommendedServices`, `estimatedCost`
+
+The agent receives a prompt like "Analyze the project at /path" and autonomously decides which tools to call. It might scan the directory first, then read `package.json`, then analyze dependencies -- the LLM decides the order.
+
+### Deployment Agent (`deployment.ts`)
+
+- **Job:** Create a deployment plan
+- **Tools:** `serviceMapperTool`, `costEstimatorTool`, `commandGeneratorTool`
+- **Output:** JSON with `services`, `estimatedCost`, `commands` (actual cloud CLI commands)
+
+Takes the analysis output and maps it to specific cloud services using lookup tables (e.g., Node.js API -> ECS Fargate on AWS, Cloud Run on GCP, Container Apps on Azure).
+
+### Validator Agent (`validator.ts`)
+
+- **Job:** Check if the environment is ready for deployment
+- **Tools:** `cliCheckerTool`, `authCheckerTool`, `envVarCheckerTool`, `networkCheckerTool`, `permissionsCheckerTool`
+- **Output:** JSON with check results per category (CLI installed, authenticated, env vars set, network OK, permissions OK)
+
+### Model Selection
+
+All three agents use the same conditional logic:
+
+```typescript
+model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    ? 'google/gemini-2.0-flash'
+    : 'openai/gpt-4o-mini',
+```
+
+This checks at module load time which API key is available and selects the model. Mastra handles the actual API calls behind the scenes.
+
+## Layer 4: Tools (`src/mastra/tools/`)
+
+Tools are typed functions that agents can invoke. Each tool has an `inputSchema` (Zod), `outputSchema` (Zod), and `execute` function.
+
+### Project Analysis Tools (`tools/index.ts`)
+
+| Tool | Purpose |
+|------|---------|
+| `fileSystemTool` | Recursively scans a directory (skips node_modules, .git, dist), returns file tree with sizes |
+| `fileReaderTool` | Reads a single file's contents |
+| `dependencyAnalyzerTool` | Parses package.json/requirements.txt, detects runtime, frameworks, databases, Docker |
+| `packageJsonParserTool` | Extracts scripts, build/start commands, port detection from package.json |
+
+### Planning Tools (`tools/deployment.ts`)
+
+| Tool | Purpose |
+|------|---------|
+| `serviceMapperTool` | Maps project type to cloud services using lookup tables |
+| `costEstimatorTool` | Estimates monthly cost based on services and scale (small/medium/large) |
+| `commandGeneratorTool` | Generates CLI commands for the selected cloud provider |
+
+### Validation Tools (`tools/validator.ts`)
+
+| Tool | Purpose |
+|------|---------|
+| `cliCheckerTool` | Runs `aws --version` / `gcloud --version` / `az --version` |
+| `authCheckerTool` | Runs provider-specific identity commands |
+| `envVarCheckerTool` | Checks if required env vars are set |
+| `networkCheckerTool` | Tests connectivity to cloud provider endpoints |
+| `permissionsCheckerTool` | Tries basic operations (list buckets, list projects, etc.) |
+
+### Execution Tools (`tools/executor.ts`)
+
+| Tool | Purpose |
+|------|---------|
+| `commandExecutorTool` | Generic shell command executor with timeout |
+| `awsCommandTool` | AWS CLI wrapper that builds `aws <service> <action>` commands |
+| `dockerBuildTool` | Builds Docker images |
+
+## Layer 5: Deployment Workflow (`src/mastra/workflows/deployment.ts`)
+
+The most architecturally interesting part. A **single-step workflow with suspend/resume** that implements a human-in-the-loop approval pattern.
+
+The workflow has 5 phases inside one step:
+
+```
+Phase 1: Environment Validation
+    |  (validatorAgent checks CLI, auth, env vars, network)
+    v
+Phase 2: Project Analysis
+    |  (analyzerAgent scans project, detects stack)
+    v
+Phase 3: Deployment Planning
+    |  (deploymentAgent generates services, cost, commands)
+    v
+Phase 4: Human Approval  <-- SUSPEND POINT
+    |  (workflow pauses, returns plan to CLI)
+    |  (CLI shows plan to user, asks for confirmation)
+    |  (user approves or rejects)
+    |  (CLI resumes workflow with { approved: true/false })
+    v
+Phase 5: Real Cloud Deployment
+    |  (imports cloud provider, authenticates, deploys)
+    v
+Done (records result to deployment history)
+```
+
+### Suspend/Resume Pattern
+
+```typescript
+// Schema definitions:
+resumeSchema: z.object({ approved: z.boolean() }),
+suspendSchema: z.object({ services, estimatedCost, commands, message }),
+
+// In execute():
+execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+        // Phases 1-3: analyze and plan
+    }
+    if (approved === undefined) {
+        return await suspend({ services, estimatedCost, commands });
+    }
+    if (approved) {
+        // Phase 5: execute deployment
+    }
+}
+```
+
+When `suspend()` is called, the workflow state is serialized to LibSQL. The CLI receives the suspend payload, displays it, and asks for confirmation. On approval, it calls `run.resume()` with `{ approved: true }`, and the workflow re-executes, skipping phases 1-3.
+
+## Layer 6: Cloud Providers (`src/providers/`)
+
+Three provider classes that execute real cloud CLI commands via `child_process.exec`:
+
+| Provider | Deployment Methods |
+|----------|-------------------|
+| **AWS** | `deployToECS()`, `deployLambda()`, `deployStaticSite()`, `cleanup()` |
+| **GCP** | `deployToCloudRun()`, `deployCloudFunctions()`, `deployToFirebase()`, `cleanup()` |
+| **Azure** | `deployToContainerApps()`, `deployAzureFunctions()`, `deployStaticWebApp()`, `deployAppService()`, `cleanup()` |
+
+Each provider class handles authentication verification, resource creation, and cleanup.
+
+## Layer 7: Utilities (`src/utils/`)
+
+| File | Purpose |
+|------|---------|
+| `config.ts` | ConfigManager -- persists settings and deployment history to `.agent-cloud/config.json` |
+| `logger.ts` | File-based logging to `.agent-cloud/logs/` with 5 levels |
+| `error-handler.ts` | Custom error classes (DeploymentError, AuthenticationError, ValidationError) |
+| `progress.ts` | Terminal spinners (ora), progress bars (cli-progress), multi-step trackers |
+| `shell.ts` | `shellEscape()`, `sanitizeResourceName()`, `sanitizePath()` for safe command construction |
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Language | TypeScript (ES2022, ESM) |
+| CLI Framework | Commander.js |
+| Interactive Prompts | Inquirer.js |
+| AI Framework | Mastra (`@mastra/core` v1.0.1) |
+| AI Models | Google Gemini 2.0 Flash / OpenAI GPT-4o Mini |
+| Schema Validation | Zod |
+| Workflow Persistence | LibSQL (embedded SQLite) |
+| Terminal UI | chalk, ora, figlet, cli-progress |
+| Shell Execution | Node.js `child_process.exec` (promisified) |
+| Module System | ESM (`"type": "module"`) |

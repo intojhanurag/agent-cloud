@@ -1,0 +1,209 @@
+---
+title: Configuration
+description: Configure Agent Cloud with API keys, cloud preferences, and project settings.
+---
+
+Agent Cloud uses three configuration layers: environment variables (`.env`), a project config file (`.agent-cloud/config.json`), and CLI flags.
+
+## Environment Variables (.env)
+
+Create a `.env` file in the directory where you run `cloud-agent`:
+
+```bash
+# AI API Key (pick one)
+GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
+# OR
+OPENAI_API_KEY=your-openai-key
+```
+
+Agent Cloud loads `.env` automatically using the `dotenv` package. The key determines which AI model is used:
+
+| Key Set | Model Used |
+|---------|-----------|
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini 2.0 Flash (free tier available) |
+| `OPENAI_API_KEY` | OpenAI GPT-4o Mini |
+
+If both keys are set, Gemini takes priority.
+
+### Getting an API Key
+
+**Google Gemini (recommended, free tier):**
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the key into your `.env` file
+
+**OpenAI:**
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new API key
+3. Copy the key into your `.env` file
+
+## Project Configuration (.agent-cloud/config.json)
+
+When you run `cloud-agent init` or `cloud-agent deploy`, Agent Cloud creates a `.agent-cloud/` directory in your project with a `config.json` file:
+
+```json
+{
+  "version": "1.0.0",
+  "defaultCloud": "aws",
+  "autoApprove": false,
+  "deployments": [],
+  "preferences": {
+    "logLevel": "info",
+    "region": {
+      "aws": "us-east-1",
+      "gcp": "us-central1",
+      "azure": "eastus"
+    }
+  }
+}
+```
+
+### Configuration Options
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | string | Config file version |
+| `defaultCloud` | `"aws"` \| `"gcp"` \| `"azure"` | Default cloud provider when `--cloud` flag is not passed |
+| `autoApprove` | boolean | Skip interactive approval prompt (same as `--yes` flag) |
+| `deployments` | array | Deployment history records (managed automatically) |
+| `preferences.logLevel` | string | Logging verbosity |
+| `preferences.region.aws` | string | Default AWS region |
+| `preferences.region.gcp` | string | Default GCP region |
+| `preferences.region.azure` | string | Default Azure region |
+
+### Setting Defaults via the CLI
+
+The `init` command provides an interactive wizard to set your default cloud provider:
+
+```bash
+cloud-agent init
+
+# During setup:
+# ? Set a default cloud provider?
+#   AWS
+#   GCP
+#   AZURE
+#   No default
+```
+
+Once set, `cloud-agent deploy` will use your default provider without requiring `--cloud`.
+
+## Deployment History
+
+Agent Cloud automatically records every deployment in the config file. Each record includes:
+
+```json
+{
+  "id": "1710432000000",
+  "timestamp": "2026-03-15T00:00:00.000Z",
+  "cloud": "aws",
+  "projectPath": "/home/user/my-project",
+  "success": true,
+  "deploymentUrl": "http://my-app.us-east-1.elb.amazonaws.com",
+  "resources": {
+    "cluster": "my-app-cluster",
+    "service": "my-app-service"
+  },
+  "cost": 35.00,
+  "duration": 45000
+}
+```
+
+History is capped at 50 records. View it with:
+
+```bash
+cloud-agent history
+```
+
+## Cloud CLI Authentication
+
+Each cloud provider requires its own CLI to be installed and authenticated:
+
+### AWS
+
+```bash
+# Install AWS CLI v2
+# https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+# Configure credentials
+aws configure
+# Enter: Access Key ID, Secret Access Key, Region, Output format
+
+# Verify
+aws sts get-caller-identity
+```
+
+### Google Cloud
+
+```bash
+# Install gcloud SDK
+# https://cloud.google.com/sdk/docs/install
+
+# Authenticate
+gcloud auth login
+
+# Set project
+gcloud config set project YOUR_PROJECT_ID
+
+# Verify
+gcloud auth print-access-token
+```
+
+### Azure
+
+```bash
+# Install Azure CLI
+# https://learn.microsoft.com/cli/azure/install-azure-cli
+
+# Authenticate
+az login
+
+# Set subscription (if you have multiple)
+az account set --subscription YOUR_SUBSCRIPTION_ID
+
+# Verify
+az account show
+```
+
+## CLI Flags
+
+CLI flags override all configuration:
+
+```bash
+# Override default cloud
+cloud-agent deploy --cloud gcp
+
+# Auto-approve without config setting
+cloud-agent deploy --yes
+
+# Analyze a different directory
+cloud-agent analyze --path /path/to/project
+
+# Force local-only analysis
+cloud-agent analyze --local
+
+# Check specific cloud environment
+cloud-agent status --cloud azure
+```
+
+## File Structure
+
+After running Agent Cloud, your project will have:
+
+```
+your-project/
+  .env                          # Your API keys (add to .gitignore)
+  .agent-cloud/
+    config.json                 # Project config and deployment history
+    logs/                       # Deployment logs
+  agent-cloud.db                # Mastra workflow state (LibSQL)
+```
+
+Add these to your `.gitignore`:
+
+```
+.env
+.agent-cloud/
+agent-cloud.db
+```

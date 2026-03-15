@@ -1,0 +1,85 @@
+---
+title: Introduction
+description: Learn what Agent Cloud is, why it exists, and how AI agents automate cloud deployments.
+---
+
+## What is Agent Cloud?
+
+Agent Cloud (`cloud-agent`) is an open-source, AI-powered command-line tool that takes any software project and deploys it to AWS, Google Cloud, or Azure. Instead of manually writing Dockerfiles, configuring cloud services, and running dozens of CLI commands, you run a single command and let AI agents handle the complexity.
+
+The tool is built in TypeScript using the [Mastra](https://mastra.ai) AI framework and uses three specialized agents that work together:
+
+1. **Analyzer Agent** -- scans your codebase to detect the technology stack, framework, databases, and project type
+2. **Deployment Planner Agent** -- maps your project to the optimal cloud services, estimates costs, and generates deployment commands
+3. **Validator Agent** -- checks that your local environment is properly configured (CLI tools installed, authenticated, correct permissions)
+
+## Why Agent Cloud?
+
+Deploying a project to the cloud typically involves:
+
+- Figuring out which cloud services fit your project (ECS vs. Lambda vs. App Service vs. Cloud Run)
+- Writing a Dockerfile or configuring a build pipeline
+- Setting up IAM roles, security groups, and networking
+- Running a series of CLI commands in the right order
+- Debugging cryptic error messages when something goes wrong
+
+Agent Cloud collapses all of that into a guided workflow. The AI reads your code the same way an experienced DevOps engineer would, then generates a complete deployment plan. You review and approve the plan before anything is executed.
+
+## How It Works
+
+The deployment flow has five phases:
+
+```
+1. Environment Validation
+   The validator agent checks your cloud CLI, authentication, and permissions.
+
+2. Project Analysis
+   The analyzer agent scans your project directory to detect runtime,
+   framework, dependencies, databases, and Docker configuration.
+
+3. Deployment Planning
+   The deployment agent maps your project to cloud services, estimates
+   monthly costs, and generates the exact CLI commands.
+
+4. Human Approval (suspend point)
+   The workflow pauses and presents the plan. You see the services,
+   estimated cost, and commands. You approve or reject.
+
+5. Cloud Execution
+   If approved, the tool runs the actual cloud CLI commands to create
+   resources and deploy your application.
+```
+
+## Core Principles
+
+**Local-first analysis.** The `analyze` command works without any API key. It reads `package.json`, `requirements.txt`, `go.mod`, and other manifest files directly. AI-powered deep analysis is opt-in with the `--ai` flag.
+
+**Human-in-the-loop.** No cloud resources are created without your explicit approval. The workflow uses Mastra's suspend/resume mechanism to pause before execution.
+
+**Multi-cloud by design.** Every analysis produces recommendations for all three major cloud providers, so you can compare services and costs before choosing.
+
+**Real deployments.** This is not a dry-run tool. When you approve a plan, it executes real cloud CLI commands (`aws`, `gcloud`, `az`) to create infrastructure and deploy your application.
+
+## Supported Project Types
+
+Agent Cloud can detect and deploy the following project types:
+
+| Type | Examples | AWS | GCP | Azure |
+|------|----------|-----|-----|-------|
+| **API** | Express, FastAPI, NestJS, Hono | ECS Fargate, Lambda | Cloud Run, Cloud Functions | Container Apps, Functions |
+| **Web App** | Next.js, React, Vue, Svelte | ECS Fargate, Amplify | Cloud Run, App Engine | App Service, Static Web Apps |
+| **Static Site** | HTML/CSS/JS, Astro, Gatsby | S3 + CloudFront | Firebase Hosting | Static Web Apps |
+| **Container** | Any Dockerfile | ECS Fargate | Cloud Run | Container Apps |
+
+## Supported Languages
+
+- **Node.js** -- npm, yarn, pnpm, and bun package managers
+- **Python** -- pip with requirements.txt
+- **Go** -- go.mod detection
+- **Any language** with a Dockerfile
+
+## Next Steps
+
+- [Install Agent Cloud](/docs/guides/installation/) to get the CLI on your machine
+- [Quick Start](/docs/guides/quickstart/) to deploy your first project in three commands
+- [Configuration](/docs/guides/configuration/) to set up API keys and preferences

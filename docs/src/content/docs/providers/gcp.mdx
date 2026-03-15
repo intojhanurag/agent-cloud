@@ -1,0 +1,183 @@
+---
+title: Google Cloud (GCP) Provider
+description: Deploy to Google Cloud Platform with Agent Cloud -- Cloud Run, Cloud Functions, and Firebase Hosting.
+---
+
+Agent Cloud supports deploying to three Google Cloud services depending on your project type. This guide covers the setup and what each deployment target provides.
+
+## Prerequisites
+
+### Install Google Cloud SDK
+
+```bash
+# macOS
+brew install --cask google-cloud-sdk
+
+# Linux (Debian/Ubuntu)
+echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+  | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+sudo apt-get update && sudo apt-get install google-cloud-cli
+
+# Or use the installer script
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+```
+
+### Authenticate and Configure
+
+```bash
+# Log in to your Google account
+gcloud auth login
+
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+
+# Set a default region
+gcloud config set run/region us-central1
+```
+
+### Enable Required APIs
+
+Agent Cloud deployments need these APIs enabled in your GCP project:
+
+```bash
+# For Cloud Run
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable containerregistry.googleapis.com
+
+# For Cloud Functions
+gcloud services enable cloudfunctions.googleapis.com
+
+# For Firebase Hosting
+gcloud services enable firebase.googleapis.com
+```
+
+### Verify Setup
+
+```bash
+# Check gcloud version
+gcloud --version
+
+# Verify authentication
+gcloud auth print-access-token
+
+# Check your project
+gcloud config get-value project
+```
+
+Or use Agent Cloud:
+
+```bash
+cloud-agent status --cloud gcp
+```
+
+## Required Roles
+
+Your Google account or service account needs these IAM roles:
+
+### For Cloud Run Deployments
+
+- `roles/run.admin` -- manage Cloud Run services
+- `roles/cloudbuild.builds.builder` -- build container images
+- `roles/storage.admin` -- push images to Container Registry
+- `roles/iam.serviceAccountUser` -- act as the runtime service account
+
+### For Cloud Functions Deployments
+
+- `roles/cloudfunctions.admin` -- manage Cloud Functions
+- `roles/storage.admin` -- upload function source code
+
+### For Firebase Hosting Deployments
+
+- `roles/firebase.admin` -- manage Firebase resources
+- `roles/storage.admin` -- upload static assets
+
+To grant roles:
+
+```bash
+# Replace with your project ID and email
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="user:you@example.com" \
+  --role="roles/run.admin"
+```
+
+## Deployment Targets
+
+### Cloud Run (APIs and Web Apps)
+
+Used for: Express, NestJS, FastAPI, Next.js, and any containerized application.
+
+Agent Cloud will:
+1. Submit a Cloud Build to build a container image from your source
+2. Push the image to Google Container Registry (gcr.io)
+3. Deploy the container to Cloud Run with the specified port
+4. Configure the service to allow unauthenticated HTTP access
+
+What you get:
+- A fully managed container running behind a Google-managed HTTPS URL
+- Automatic scaling from zero to many instances
+- Per-request billing (generous free tier: 2M requests/month)
+- Built-in HTTPS with a `*.run.app` domain
+
+Estimated cost: **$0-25/month** depending on traffic (free tier covers many small apps).
+
+### Cloud Functions (Serverless Functions)
+
+Used for: Lightweight APIs, webhooks, event handlers, and background tasks.
+
+Agent Cloud will:
+1. Package your function source code
+2. Deploy to Cloud Functions with HTTP trigger
+3. Configure runtime, memory, and timeout
+
+What you get:
+- Pay-per-invocation pricing (free tier: 2M invocations/month)
+- Automatic scaling
+- Integrated with other GCP services (Pub/Sub, Storage events, etc.)
+
+Estimated cost: **$0-10/month** for low-traffic functions.
+
+### Firebase Hosting (Static Sites)
+
+Used for: HTML/CSS/JS sites, React SPAs, Astro, Gatsby, and other static builds.
+
+Agent Cloud will:
+1. Initialize Firebase configuration in your project
+2. Build your static assets (if a build command is detected)
+3. Deploy the output directory to Firebase Hosting
+
+What you get:
+- Global CDN-backed static hosting
+- Free SSL certificates
+- Custom domain support
+- Preview URLs for each deployment
+
+Estimated cost: **$0/month** for most static sites (free tier: 10GB hosting, 360MB/day transfer).
+
+## How Agent Cloud Chooses
+
+| Project Type | Primary Service | Fallback |
+|-------------|----------------|----------|
+| API (Node.js, Python, Go) | Cloud Run | Cloud Functions |
+| Web App (Next.js, React SSR) | Cloud Run | App Engine |
+| Static Site (HTML, SPA) | Firebase Hosting | Cloud Storage |
+| Container (Dockerfile) | Cloud Run | -- |
+
+## Cleanup
+
+```bash
+cloud-agent cleanup --cloud gcp
+```
+
+This deletes Cloud Run services, Cloud Functions, Firebase Hosting sites, and associated container images.
+
+## Troubleshooting
+
+**"PERMISSION_DENIED"** -- Your account lacks the required IAM roles. Check the roles section above and make sure the relevant APIs are enabled.
+
+**"Cloud Build API has not been enabled"** -- Run `gcloud services enable cloudbuild.googleapis.com` in your project.
+
+**"The current account does not have access to project"** -- Run `gcloud config set project YOUR_PROJECT_ID` and make sure you have access.
+
+**"Container failed to start"** -- Your application must listen on the port specified by the `PORT` environment variable (Cloud Run sets this automatically, default 8080). Make sure your app reads `process.env.PORT`.

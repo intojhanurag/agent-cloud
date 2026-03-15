@@ -1,0 +1,126 @@
+---
+title: Installation
+description: Install Agent Cloud and set up the prerequisites for AI-powered cloud deployments.
+---
+
+## Prerequisites
+
+Before installing Agent Cloud, make sure you have:
+
+### Node.js 18+
+
+Agent Cloud is built with TypeScript and requires Node.js version 18 or higher.
+
+```bash
+# Check your Node.js version
+node --version
+
+# If you need to install or update Node.js:
+# Using nvm (recommended)
+nvm install 18
+nvm use 18
+
+# Or download from https://nodejs.org
+```
+
+### A Cloud CLI (at least one)
+
+You need the CLI tool for whichever cloud provider you want to deploy to:
+
+| Provider | CLI Tool | Installation Guide |
+|----------|----------|-------------------|
+| AWS | `aws` CLI v2 | [AWS CLI Install Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
+| Google Cloud | `gcloud` SDK | [Google Cloud SDK Install](https://cloud.google.com/sdk/docs/install) |
+| Azure | `az` CLI | [Azure CLI Install](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+
+You can install all three or just the one you plan to use. The `cloud-agent init` command will detect which CLIs are available.
+
+### An AI API Key (optional for analysis, required for deploy)
+
+The `analyze` command works without any API key using local-only analysis. However, `deploy` and `analyze --ai` require one of:
+
+- **Google Gemini API key** (free tier available) -- get one at [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **OpenAI API key** (paid) -- get one at [OpenAI Platform](https://platform.openai.com/api-keys)
+
+## Install Agent Cloud
+
+### From npm (recommended)
+
+```bash
+npm install -g agent-cloud
+```
+
+After installation, the `cloud-agent` command will be available globally.
+
+### From source
+
+If you want to run from source or contribute:
+
+```bash
+# Clone the repository
+git clone https://github.com/intojhanurag/agent-cloud.git
+cd agent-cloud
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Link the CLI globally
+npm link
+```
+
+You can also run directly from source without building:
+
+```bash
+# Run with tsx (TypeScript executor)
+npm run cli
+
+# Or explicitly
+npx tsx src/cli/index.ts
+```
+
+## Verify Installation
+
+```bash
+# Check that the CLI is available
+cloud-agent --version
+
+# Run the setup wizard
+cloud-agent init
+```
+
+The `init` command will:
+
+1. **Set up your AI API key** -- prompts you to enter a Gemini or OpenAI key and saves it to `.env`
+2. **Detect cloud CLIs** -- checks for `aws`, `gcloud`, and `az` and reports which are installed
+3. **Set default preferences** -- lets you pick a default cloud provider
+
+## Environment Setup
+
+### Using a `.env` file
+
+Create a `.env` file in your project directory (or wherever you run `cloud-agent`):
+
+```bash
+# AI provider (pick one)
+GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key-here
+# OR
+OPENAI_API_KEY=your-openai-key-here
+```
+
+Agent Cloud loads `.env` automatically via `dotenv`.
+
+### Using shell environment variables
+
+You can also export the key in your shell profile:
+
+```bash
+# In ~/.bashrc or ~/.zshrc
+export GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key-here
+```
+
+## What's Next
+
+Once installed, head to the [Quick Start](/docs/guides/quickstart/) guide to deploy your first project.

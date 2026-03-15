@@ -1,0 +1,100 @@
+---
+title: "cloud-agent logs"
+description: "Command reference for cloud-agent logs -- view deployment and application logs."
+---
+
+The `logs` command provides access to deployment logs and application output.
+
+## Usage
+
+```bash
+cloud-agent logs [options]
+```
+
+## Local Logs
+
+Agent Cloud writes detailed logs to `.agent-cloud/logs/` in your project directory. The logging system supports five levels:
+
+| Level | Description |
+|-------|-------------|
+| `debug` | Detailed diagnostic information |
+| `info` | General operational messages |
+| `warn` | Warning conditions that do not prevent operation |
+| `error` | Error conditions that caused a failure |
+| `fatal` | Severe errors that halt execution |
+
+Log files are created per session and include timestamps, log levels, and structured messages.
+
+## Log File Location
+
+```
+your-project/
+  .agent-cloud/
+    logs/
+      agent-cloud-2026-03-15.log
+      agent-cloud-2026-03-14.log
+```
+
+## Log Content
+
+Logs capture:
+- CLI command invocations and arguments
+- AI agent prompts and responses
+- Tool executions and results
+- Cloud CLI commands executed and their output
+- Error details with stack traces
+- Deployment workflow state transitions
+
+## Cloud Provider Logs
+
+For logs from your running application after deployment, use the cloud provider's native log commands:
+
+### AWS (CloudWatch Logs)
+
+```bash
+# View ECS task logs
+aws logs tail /ecs/your-app --follow
+
+# View Lambda function logs
+aws logs tail /aws/lambda/your-function --follow
+```
+
+### GCP (Cloud Logging)
+
+```bash
+# View Cloud Run logs
+gcloud run services logs read your-service --limit=50
+
+# View Cloud Function logs
+gcloud functions logs read your-function --limit=50
+```
+
+### Azure (Log Stream)
+
+```bash
+# View Container Apps logs
+az containerapp logs show -n your-app -g your-resource-group
+
+# View Function App logs
+az webapp log tail -n your-function-app -g your-resource-group
+```
+
+## Configuring Log Level
+
+Set the log level in `.agent-cloud/config.json`:
+
+```json
+{
+  "preferences": {
+    "logLevel": "debug"
+  }
+}
+```
+
+Or during `cloud-agent init` when setting preferences.
+
+## Notes
+
+- Local logs are useful for debugging deployment failures
+- Cloud provider logs show runtime application output
+- Log files are not automatically rotated; you may want to periodically clean old log files

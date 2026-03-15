@@ -1,0 +1,138 @@
+---
+title: "cloud-agent analyze"
+description: "Command reference for cloud-agent analyze -- project analysis and cloud service recommendations."
+---
+
+The `analyze` command scans your project to detect the technology stack and recommend cloud services. By default it runs locally without any API key. With the `--ai` flag, it uses an AI agent for deeper analysis.
+
+## Usage
+
+```bash
+cloud-agent analyze [options]
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--local` | Force local-only analysis (no AI, no API key needed). This is the default behavior. |
+| `--ai` | Enable AI-powered deep analysis using the analyzer agent. Requires an API key. |
+| `-p, --path <directory>` | Path to the project directory to analyze. Defaults to the current working directory. |
+
+## Local Analysis (Default)
+
+When run without `--ai`, the analyze command performs a fast, offline scan of your project directory. It reads configuration files directly without calling any AI model.
+
+### What It Detects
+
+**Runtime detection** by checking for:
+- `package.json` -- Node.js
+- `requirements.txt` -- Python
+- `go.mod` -- Go
+- `index.html` (no other runtime) -- Static HTML
+
+**Framework detection** from dependencies:
+- Node.js: Next.js, Express, NestJS, Fastify, React, Vue, Svelte, Astro, Hono
+- Python: FastAPI, Flask, Django
+
+**Package manager** by checking for lock files:
+- `pnpm-lock.yaml` -- pnpm
+- `yarn.lock` -- yarn
+- `bun.lockb` -- bun
+- Default -- npm (for Node.js) or pip (for Python)
+
+**Database detection** from dependencies:
+- PostgreSQL (`pg`, `postgres`, `@prisma/client`, `psycopg2`)
+- MySQL (`mysql`, `mysql2`)
+- MongoDB (`mongodb`, `mongoose`, `pymongo`)
+- Redis (`redis`, `ioredis`)
+- SQLite (`sqlite3`, `better-sqlite3`)
+
+**Docker detection:**
+- `Dockerfile` presence
+- `docker-compose.yml` / `docker-compose.yaml` presence
+
+**Build and start commands** from `package.json` scripts.
+
+**Port detection** from script values (looks for `PORT=` patterns, defaults to 3000).
+
+### Quick Recommendations
+
+Based on the detected project type, it suggests services:
+
+| Type | AWS | GCP | Azure |
+|------|-----|-----|-------|
+| Static | S3 + CloudFront | Firebase Hosting | Static Web Apps |
+| API | ECS Fargate or Lambda | Cloud Run | Container Apps or App Service |
+| Web | Amplify or ECS Fargate | Cloud Run or App Engine | App Service or Static Web Apps |
+| Container | ECS Fargate | Cloud Run | Container Apps |
+
+## AI Analysis (`--ai`)
+
+When run with `--ai`, the command invokes the **analyzer agent** -- an AI agent powered by Gemini 2.0 Flash or GPT-4o Mini. The agent autonomously uses tools to:
+
+1. Scan the project directory structure
+2. Read configuration files
+3. Analyze dependencies
+4. Determine deployment strategy
+
+The AI analysis provides:
+- Detailed service recommendations for all three clouds
+- Estimated monthly costs per provider
+- Confidence score
+- Environment variable requirements
+- Deployment-specific recommendations
+
+### Requirements
+
+- An AI API key must be configured (`GOOGLE_GENERATIVE_AI_API_KEY` or `OPENAI_API_KEY`)
+- Run `cloud-agent init` if you need to set up a key
+
+## Example Output
+
+```
+  ── Project Analysis ──────────────────────
+
+  ℹ Project: /home/user/my-express-app
+  ℹ Mode: Local
+
+  ℹ Project Details:
+
+    Runtime:         Node.js
+    Framework:       Express.js
+    Project Type:    api
+    Package Manager: npm
+    Build Command:   tsc
+    Start Command:   node dist/index.js
+    Port:            3000
+    Docker:          Yes
+    Databases:       PostgreSQL
+
+  Dependencies (8):
+    - express
+    - pg
+    - dotenv
+    - cors
+    - helmet
+    - zod
+    - typescript
+    - @types/express
+    ... and 2 more
+
+  ℹ Quick Recommendations:
+
+    AWS:   ECS Fargate or Lambda
+    GCP:   Cloud Run
+    Azure: Container Apps or App Service
+
+  ✓ Local analysis complete
+
+  ℹ Tip: Run cloud-agent analyze --ai for AI-powered deep analysis
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Analysis completed successfully |
+| 1 | Analysis failed (file read error, invalid project, etc.) |

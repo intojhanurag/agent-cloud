@@ -1,0 +1,69 @@
+---
+title: "cloud-agent cleanup"
+description: "Command reference for cloud-agent cleanup -- remove cloud resources created by Agent Cloud."
+---
+
+The `cleanup` command removes cloud resources that were created during a previous deployment. This helps you avoid ongoing charges for resources you no longer need.
+
+## Usage
+
+```bash
+cloud-agent cleanup [options]
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `-c, --cloud <provider>` | Cloud provider to clean up. One of `aws`, `gcp`, `azure`. |
+
+## What Gets Removed
+
+The cleanup behavior varies by cloud provider:
+
+### AWS Cleanup
+
+- **ECS**: Services, task definitions, and clusters
+- **ECR**: Container image repositories
+- **Lambda**: Function definitions and associated roles
+- **S3**: Buckets created for static hosting (contents are deleted first)
+- **Load Balancers**: ALBs and target groups
+
+### GCP Cleanup
+
+- **Cloud Run**: Services and revisions
+- **Cloud Functions**: Function deployments
+- **Firebase Hosting**: Hosting sites
+- **Container images**: Images in Google Container Registry
+
+### Azure Cleanup
+
+Azure resources are organized into resource groups. Cleanup can either:
+- Delete individual resources (Container Apps, Function Apps, Static Web Apps, storage accounts)
+- Delete the entire resource group (removes everything in one operation)
+
+## Safety
+
+The cleanup command will prompt for confirmation before deleting resources. It does not auto-delete unless you explicitly confirm.
+
+Resources are identified by the deployment history stored in `.agent-cloud/config.json`. If you deployed outside of Agent Cloud, those resources will not be tracked or cleaned up.
+
+## Example
+
+```bash
+# Clean up AWS resources from previous deployments
+cloud-agent cleanup --cloud aws
+
+# Clean up GCP resources
+cloud-agent cleanup --cloud gcp
+
+# Clean up Azure resources
+cloud-agent cleanup --cloud azure
+```
+
+## Notes
+
+- Always verify which resources will be deleted before confirming
+- Cleanup may fail if resources have dependencies that must be removed first
+- Some resources (like CloudWatch log groups or DNS records) may need manual cleanup
+- If deployment history has been cleared, cleanup will have no record of what was created

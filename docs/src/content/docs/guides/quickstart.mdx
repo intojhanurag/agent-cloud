@@ -1,0 +1,157 @@
+---
+title: Quick Start
+description: Deploy your first project to the cloud in three commands with Agent Cloud.
+---
+
+This guide walks you through deploying a project using Agent Cloud in under five minutes.
+
+## Step 1: Initialize
+
+Navigate to your project directory and run the setup wizard:
+
+```bash
+cd your-project
+cloud-agent init
+```
+
+The wizard will:
+- Ask you to configure an AI API key (Gemini or OpenAI)
+- Detect which cloud CLIs you have installed (AWS, GCP, Azure)
+- Let you set a default cloud provider
+
+If you already have your API key in a `.env` file or environment variable, this step will detect it automatically.
+
+## Step 2: Analyze Your Project
+
+```bash
+cloud-agent analyze
+```
+
+This runs a **local analysis** that requires no API key. It scans your project and reports:
+
+- Runtime (Node.js, Python, Go)
+- Framework (Express, Next.js, FastAPI, etc.)
+- Package manager (npm, yarn, pnpm, pip)
+- Databases detected in dependencies
+- Docker configuration
+- Quick cloud service recommendations
+
+Example output:
+
+```
+  Project Details:
+
+    Runtime:         Node.js
+    Framework:       Express.js
+    Project Type:    api
+    Package Manager: npm
+    Build Command:   tsc
+    Start Command:   node dist/index.js
+    Port:            3000
+    Docker:          Yes
+
+  Quick Recommendations:
+
+    AWS:   ECS Fargate or Lambda
+    GCP:   Cloud Run
+    Azure: Container Apps or App Service
+```
+
+For a deeper analysis powered by AI, add the `--ai` flag:
+
+```bash
+cloud-agent analyze --ai
+```
+
+The AI analyzer agent will provide detailed service recommendations, cost estimates, and deployment strategy suggestions.
+
+## Step 3: Deploy
+
+```bash
+cloud-agent deploy --cloud aws
+```
+
+Replace `aws` with `gcp` or `azure` depending on your target.
+
+The deploy command triggers a multi-phase workflow:
+
+### Phase 1: Environment Validation
+The validator agent checks that your cloud CLI is installed, you are authenticated, and your environment is ready.
+
+### Phase 2: Project Analysis
+The analyzer agent scans your project to determine the technology stack and requirements.
+
+### Phase 3: Deployment Planning
+The deployment agent generates a plan with specific cloud services, estimated monthly cost, and the exact CLI commands that will be executed.
+
+### Phase 4: Your Approval
+
+The workflow pauses and displays the plan:
+
+```
+  ── Deployment Plan ──────────────────────
+
+  Services:
+    - ECS Fargate
+    - Application Load Balancer
+    - CloudWatch Logs
+
+  Estimated Cost: $35.00 /month
+
+  Commands to execute:
+    aws ecr create-repository --repository-name your-app
+    docker build -t your-app .
+    aws ecs create-cluster --cluster-name your-app-cluster
+    ...
+
+  ? Proceed with this deployment? (y/N)
+```
+
+Review the services and costs. Type `y` to approve or `n` to cancel.
+
+### Phase 5: Execution
+
+Once approved, Agent Cloud executes the cloud CLI commands in sequence. It creates the necessary infrastructure and deploys your application. When complete, you get a deployment URL.
+
+```
+  Deployment completed successfully!
+  URL: http://your-app.us-east-1.elb.amazonaws.com
+```
+
+## Auto-Approve Mode
+
+If you want to skip the interactive approval prompt (useful for CI/CD):
+
+```bash
+cloud-agent deploy --cloud aws --yes
+```
+
+The `--yes` flag auto-approves the deployment plan.
+
+## Check Your Environment First
+
+Before deploying, you can verify your environment is ready:
+
+```bash
+cloud-agent status --cloud aws
+```
+
+This checks CLI installation, authentication, environment variables, network connectivity, and permissions.
+
+## View Deployment History
+
+After deploying, you can review past deployments:
+
+```bash
+cloud-agent history
+```
+
+This shows a summary of all deployments with timestamps, cloud providers, success/failure status, URLs, and durations.
+
+## Next Steps
+
+- [Configuration](/docs/guides/configuration/) -- customize API keys, default cloud, and preferences
+- [AWS Provider](/docs/providers/aws/) -- AWS-specific setup and services
+- [GCP Provider](/docs/providers/gcp/) -- Google Cloud setup and services
+- [Azure Provider](/docs/providers/azure/) -- Azure setup and services
+- [Command Reference](/docs/reference/deploy/) -- full deploy command options

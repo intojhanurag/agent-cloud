@@ -1,0 +1,176 @@
+---
+title: Azure Provider
+description: Deploy to Microsoft Azure with Agent Cloud -- Container Apps, Azure Functions, and Static Web Apps.
+---
+
+Agent Cloud supports deploying to four Azure services depending on your project type. This guide covers the setup and what each deployment target provides.
+
+## Prerequisites
+
+### Install Azure CLI
+
+```bash
+# macOS
+brew install azure-cli
+
+# Linux (Debian/Ubuntu)
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# Windows
+# Download from https://learn.microsoft.com/cli/azure/install-azure-cli-windows
+```
+
+### Authenticate
+
+```bash
+# Log in (opens a browser)
+az login
+
+# If you have multiple subscriptions, set the active one
+az account set --subscription YOUR_SUBSCRIPTION_ID
+
+# Verify
+az account show
+```
+
+### Verify Setup
+
+```bash
+az --version
+az account show
+```
+
+Or use Agent Cloud:
+
+```bash
+cloud-agent status --cloud azure
+```
+
+## Required Permissions
+
+Your Azure account needs the following role assignments on the target subscription or resource group:
+
+### For Container Apps
+
+- **Contributor** role on the resource group
+- **AcrPush** role if using Azure Container Registry
+
+### For Azure Functions
+
+- **Contributor** role on the resource group
+- **Storage Account Contributor** for the function's backing storage
+
+### For Static Web Apps
+
+- **Contributor** role on the resource group
+
+### For App Service
+
+- **Contributor** role on the resource group
+
+In most cases, the **Contributor** role at the subscription level is sufficient for all deployment targets.
+
+## Deployment Targets
+
+### Container Apps (APIs and Web Apps)
+
+Used for: Express, NestJS, FastAPI, Next.js, and any containerized application.
+
+Agent Cloud will:
+1. Create a resource group (if needed)
+2. Create an Azure Container Apps environment
+3. Build and deploy your container using `az containerapp up` or by pushing to Azure Container Registry
+4. Configure ingress for HTTP traffic
+
+What you get:
+- Fully managed container hosting with automatic HTTPS
+- Scale to zero (pay only when handling requests)
+- Built-in support for microservices and Dapr
+- Per-second billing with a generous free grant
+
+Estimated cost: **$0-30/month** (free grant: 180,000 vCPU-seconds, 360,000 GiB-seconds per month).
+
+### Azure Functions (Serverless Functions)
+
+Used for: Lightweight APIs, webhooks, event handlers, and scheduled tasks.
+
+Agent Cloud will:
+1. Create a resource group (if needed)
+2. Create a Storage Account for function state
+3. Create a Function App with the appropriate runtime (Node.js, Python, etc.)
+4. Deploy your function code
+
+What you get:
+- Pay-per-execution pricing (free tier: 1M executions/month)
+- Automatic scaling
+- Integration with Azure services (Event Grid, Service Bus, etc.)
+- HTTP trigger with a `*.azurewebsites.net` URL
+
+Estimated cost: **$0-10/month** for low-traffic functions.
+
+### Static Web Apps (Static Sites)
+
+Used for: HTML/CSS/JS sites, React SPAs, Astro, Gatsby, and other static builds.
+
+Agent Cloud will:
+1. Create an Azure Static Web App resource
+2. Upload your build output
+3. Configure routing for SPA fallback
+
+What you get:
+- Free hosting for static content
+- Global CDN distribution
+- Built-in staging environments
+- Custom domain support with free SSL
+- API support via integrated Azure Functions
+
+Estimated cost: **$0/month** on the free tier (100GB bandwidth, 2 custom domains).
+
+### App Service (Full Web Apps)
+
+Used for: Server-rendered web applications and APIs that need a traditional hosting model.
+
+Agent Cloud will:
+1. Create a resource group (if needed)
+2. Create an App Service plan (B1 tier by default)
+3. Create a Web App with the appropriate runtime stack
+4. Deploy your application code
+
+What you get:
+- Managed PaaS with built-in load balancing
+- Deployment slots for zero-downtime deploys
+- Custom domain and SSL support
+- Integrated monitoring via Application Insights
+
+Estimated cost: **$13-55/month** depending on the plan tier.
+
+## How Agent Cloud Chooses
+
+| Project Type | Primary Service | Fallback |
+|-------------|----------------|----------|
+| API (Node.js, Python, Go) | Container Apps | App Service |
+| Web App (Next.js, React SSR) | Container Apps | App Service |
+| Static Site (HTML, SPA) | Static Web Apps | -- |
+| Container (Dockerfile) | Container Apps | App Service |
+
+## Resource Groups
+
+Azure organizes resources into resource groups. Agent Cloud creates a resource group named after your project (e.g., `my-app-rg`) in the default region. All resources for a deployment go into the same resource group, making cleanup straightforward.
+
+## Cleanup
+
+```bash
+cloud-agent cleanup --cloud azure
+```
+
+This deletes the resource group and all resources within it (Container Apps, Functions, Static Web Apps, storage accounts, etc.). Because Azure uses resource groups, cleanup is typically a single operation.
+
+## Troubleshooting
+
+**"Please run 'az login' to set up account"** -- You need to authenticate. Run `az login` and follow the browser prompt.
+
+**"The subscription is not registered to use namespace Microsoft.App"** -- Register the Container Apps provider: `az provider register --namespace Microsoft.App`
+
+**"Insufficient permissions"** -- Make sure your account has the Contributor role on the target subscription or resource group.
+
+**"Storage account name already taken"** -- Azure storage account names must be globally unique. Agent Cloud generates names based on your project, but conflicts can occur. Try deploying with a different `--app-name`.

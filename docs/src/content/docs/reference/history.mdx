@@ -1,0 +1,88 @@
+---
+title: "cloud-agent history"
+description: "Command reference for cloud-agent history -- view past deployment records."
+---
+
+The `history` command displays your deployment history, including a summary of total deployments, success/failure counts, and details of recent deployments.
+
+## Usage
+
+```bash
+cloud-agent history
+```
+
+No flags or arguments. History is read from the `.agent-cloud/config.json` file in the current directory.
+
+## What It Shows
+
+### Summary Statistics
+
+- **Total** -- number of deployments recorded
+- **Successful** -- number of deployments that completed without errors
+- **Failed** -- number of deployments that encountered errors
+- **Total Cost** -- cumulative estimated cost across all deployments (if cost data is available)
+
+### Recent Deployments
+
+The last 10 deployments are shown in reverse chronological order. Each entry includes:
+
+- Success/failure indicator
+- Cloud provider (AWS, GCP, AZURE)
+- Timestamp
+- Deployment URL (if available)
+- Duration
+
+## Example Output
+
+```
+  ── Deployment History ────────────────
+
+  ℹ Summary:
+    Total:      5
+    Successful: 4
+    Failed:     1
+
+  ℹ Recent Deployments:
+
+    ✓ AWS   Mar 15, 2026, 02:30 PM
+      URL: http://my-app.us-east-1.elb.amazonaws.com
+      Duration: 45.2s
+
+    ✓ GCP   Mar 14, 2026, 10:15 AM
+      URL: https://my-app-abc123.run.app
+      Duration: 32.8s
+
+    ✗ AZURE Mar 13, 2026, 04:00 PM
+      Duration: 12.1s
+
+    ✓ AWS   Mar 12, 2026, 11:00 AM
+      URL: http://my-app.us-east-1.elb.amazonaws.com
+      Duration: 48.5s
+```
+
+## Data Storage
+
+Deployment records are stored in `.agent-cloud/config.json` under the `deployments` array. Each record contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (timestamp-based) |
+| `timestamp` | string | ISO 8601 timestamp of the deployment |
+| `cloud` | string | Cloud provider (`aws`, `gcp`, `azure`) |
+| `projectPath` | string | Absolute path to the project that was deployed |
+| `success` | boolean | Whether the deployment succeeded |
+| `deploymentUrl` | string | URL of the deployed application (if available) |
+| `resources` | object | Map of created resource names and identifiers |
+| `cost` | number | Estimated monthly cost |
+| `duration` | number | Deployment duration in milliseconds |
+
+## Limits
+
+- History is capped at the 50 most recent deployments
+- Older records are automatically removed when new deployments are recorded
+- History is local to the project directory (each project has its own history)
+
+## Notes
+
+- If no deployments have been recorded, the command shows a message suggesting you run `cloud-agent deploy`.
+- History data is not synced across machines. It lives in the local `.agent-cloud/` directory.

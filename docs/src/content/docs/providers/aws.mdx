@@ -1,0 +1,194 @@
+---
+title: AWS Provider
+description: Deploy to Amazon Web Services with Agent Cloud -- ECS Fargate, Lambda, and S3 static hosting.
+---
+
+Agent Cloud supports deploying to three AWS services depending on your project type. This guide covers the setup required and what each deployment target looks like.
+
+## Prerequisites
+
+### Install AWS CLI v2
+
+```bash
+# macOS
+brew install awscli
+
+# Linux
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Windows
+# Download from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+```
+
+### Configure Credentials
+
+```bash
+aws configure
+```
+
+You will be prompted for:
+- **AWS Access Key ID** -- from your IAM user
+- **AWS Secret Access Key** -- from your IAM user
+- **Default region** -- e.g. `us-east-1`
+- **Default output format** -- `json` recommended
+
+### Verify Setup
+
+```bash
+# Check CLI version
+aws --version
+
+# Verify authentication
+aws sts get-caller-identity
+```
+
+You can also use Agent Cloud to verify:
+
+```bash
+cloud-agent status --cloud aws
+```
+
+## IAM Permissions Required
+
+The IAM user or role you authenticate with needs the following permissions. You can attach the AWS managed policies listed below, or create a custom policy.
+
+### For ECS Fargate Deployments
+
+Required managed policies:
+- `AmazonECS_FullAccess`
+- `AmazonEC2ContainerRegistryFullAccess`
+- `ElasticLoadBalancingFullAccess`
+- `CloudWatchLogsFullAccess`
+
+Or a custom policy covering:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecs:CreateCluster",
+        "ecs:RegisterTaskDefinition",
+        "ecs:CreateService",
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+        "ecs:DescribeClusters",
+        "elasticloadbalancing:*",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "iam:PassRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### For Lambda Deployments
+
+- `AWSLambda_FullAccess`
+- `IAMFullAccess` (for creating execution roles)
+
+### For S3 Static Site Deployments
+
+- `AmazonS3FullAccess`
+- `CloudFrontFullAccess` (optional, for CDN)
+
+## Deployment Targets
+
+### ECS Fargate (APIs and Web Apps)
+
+Used for: Express, NestJS, FastAPI, Next.js, and any containerized application.
+
+Agent Cloud will:
+1. Create an ECR (Elastic Container Registry) repository
+2. Build a Docker image from your project (generates a Dockerfile if needed)
+3. Push the image to ECR
+4. Create an ECS cluster
+5. Register a task definition with your container configuration
+6. Create an ECS service with the desired number of tasks
+7. Set up an Application Load Balancer for HTTP traffic
+
+What you get:
+- A running container accessible via a load balancer URL
+- Automatic restarts if the container crashes
+- CloudWatch Logs for monitoring
+
+Estimated cost: **$30-60/month** for a small service (256 CPU, 512MB memory).
+
+### Lambda (Serverless Functions)
+
+Used for: Lightweight APIs, event handlers, and scheduled tasks.
+
+Agent Cloud will:
+1. Package your code into a deployment bundle
+2. Create a Lambda function with the appropriate runtime
+3. Configure memory and timeout settings
+4. Set up an API Gateway trigger for HTTP endpoints
+
+What you get:
+- Pay-per-invocation pricing (free tier: 1M requests/month)
+- Automatic scaling to zero
+- No server management
+
+Estimated cost: **$0-10/month** for low-traffic services.
+
+### S3 Static Site (Static Sites)
+
+Used for: HTML/CSS/JS sites, React SPAs, Astro, Gatsby, and other static builds.
+
+Agent Cloud will:
+1. Create an S3 bucket configured for static website hosting
+2. Set the bucket policy for public read access
+3. Upload your build output (e.g., `dist/` or `build/`)
+4. Optionally create a CloudFront distribution for CDN
+
+What you get:
+- Globally accessible static website
+- Near-zero hosting cost
+- Optional CloudFront CDN for lower latency
+
+Estimated cost: **$1-5/month** for typical static sites.
+
+## How Agent Cloud Chooses
+
+The analyzer agent detects your project type and maps it to AWS services:
+
+| Project Type | Primary Service | Fallback |
+|-------------|----------------|----------|
+| API (Node.js, Python, Go) | ECS Fargate | Lambda |
+| Web App (Next.js, React SSR) | ECS Fargate | Amplify |
+| Static Site (HTML, SPA) | S3 + CloudFront | Amplify |
+| Container (Dockerfile) | ECS Fargate | -- |
+
+## Cleanup
+
+To remove resources created by Agent Cloud:
+
+```bash
+cloud-agent cleanup --cloud aws
+```
+
+This deletes ECS services, clusters, ECR repositories, S3 buckets, and associated resources that were created during deployment.
+
+## Troubleshooting
+
+**"Unable to locate credentials"** -- Run `aws configure` or check that `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set in your environment.
+
+**"AccessDeniedException"** -- Your IAM user lacks the required permissions. See the IAM section above.
+
+**"No Docker daemon"** -- ECS deployments require Docker to build images. Make sure Docker Desktop or Docker Engine is running.
+
+**"Rate exceeded"** -- AWS API rate limits. Wait a moment and try again, or request a limit increase.

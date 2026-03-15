@@ -1,0 +1,131 @@
+---
+title: Security
+description: Shell injection prevention, credential handling, and security practices in Agent Cloud.
+---
+
+Agent Cloud executes real shell commands on your machine and interacts with cloud provider APIs. This page covers the security measures in place and best practices for safe usage.
+
+## Shell Command Sanitization
+
+Agent Cloud executes cloud CLI commands using Node.js `child_process.exec`. All user-provided values that end up in shell commands pass through sanitization functions defined in `src/utils/shell.ts`.
+
+### Resource Name Sanitization
+
+Cloud resource names (cluster names, service names, bucket names) are sanitized with `sanitizeResourceName()`:
+
+```typescript
+function sanitizeResourceName(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')   // Only allow lowercase alphanumeric and hyphens
+        .replace(/--+/g, '-')           // Collapse multiple hyphens
+        .replace(/^-|-$/g, '')          // Remove leading/trailing hyphens
+        .substring(0, 63);              // Enforce max length
+}
+```
+
+This prevents injection through resource names. For example, if a `package.json` has `"name": "my-app; rm -rf /"`, the sanitized name becomes `my-app--rm--rf--`.
+
+### Shell Escaping
+
+The `shellEscape()` function wraps values in single quotes with proper escaping:
+
+```typescript
+function shellEscape(str: string): string {
+    str = str.replace(/\0/g, '');                    // Remove null bytes
+    return "'" + str.replace(/'/g, "'\\''") + "'";   // Single-quote wrapping
+}
+```
+
+### Path Sanitization
+
+The `sanitizePath()` function prevents directory traversal attacks:
+
+```typescript
+function sanitizePath(filePath: string, basePath?: string): string {
+    const cleaned = filePath.replace(/\0/g, '');
+    const resolved = path.resolve(base, cleaned);
+    if (!resolved.startsWith(path.resolve(base))) {
+        throw new Error('Path traversal detected');
+    }
+    return resolved;
+}
+```
+
+This ensures file operations stay within the project directory. A path like `../../etc/passwd` would be rejected.
+
+## Credential Handling
+
+### API Keys
+
+- AI API keys are stored in `.env` files and loaded via `dotenv`
+- Keys are never logged, displayed, or included in deployment commands
+- The `init` command uses masked input (`inquirer` password type) when collecting keys
+- `.env` files should be added to `.gitignore` to prevent accidental commits
+
+### Cloud Credentials
+
+Agent Cloud does not store cloud credentials. It relies on the native CLI tools:
+
+- **AWS**: credentials from `~/.aws/credentials` or environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
+- **GCP**: credentials from `gcloud auth login` stored in `~/.config/gcloud/`
+- **Azure**: credentials from `az login` stored in `~/.azure/`
+
+Agent Cloud only reads these indirectly by invoking the CLI tools. It does not parse credential files directly.
+
+### Environment Variables in Deployments
+
+When deploying, Agent Cloud reads `.env` from the project directory and forwards environment variables to the deployed application (e.g., as ECS task definition environment, Cloud Run env vars, or Azure App Settings). Be aware that:
+
+- Only variables from the project's `.env` file are forwarded
+- System-level environment variables are not automatically included
+- Sensitive values are passed to cloud APIs over HTTPS
+
+## Workflow State Persistence
+
+The Mastra workflow engine persists state to a local LibSQL database (`agent-cloud.db`). This file contains:
+
+- Workflow run metadata
+- Suspend payloads (deployment plans, including service names and commands)
+- Resume data (approval status)
+
+This file is stored locally and is not transmitted anywhere. Add it to `.gitignore`:
+
+```
+agent-cloud.db
+```
+
+## AI Model Interactions
+
+When using AI-powered features (`analyze --ai` or `deploy`), project information is sent to the configured AI model provider:
+
+- **Google Gemini**: project analysis data is sent to Google's API
+- **OpenAI**: project analysis data is sent to OpenAI's API
+
+This includes:
+- Directory structure and file names
+- Contents of configuration files (package.json, requirements.txt, etc.)
+- Dependency lists
+
+Source code files are generally not sent unless the AI agent specifically uses `fileReaderTool` to read them. The agent's instructions focus it on configuration files rather than source code.
+
+### Reducing Data Exposure
+
+- Use `cloud-agent analyze` (without `--ai`) for local-only analysis that sends nothing to external services
+- Review the AI provider's data retention policies
+- For sensitive projects, consider using `--local` analysis and manually configuring deployment
+
+## File System Access
+
+The analyzer agent's tools can read files within the project directory. The `fileSystemTool` skips common directories (`node_modules`, `.git`, `dist`, `build`, `coverage`) to avoid reading unnecessary files. The `fileReaderTool` reads specific files the agent requests.
+
+Path validation ensures tools cannot read files outside the project directory.
+
+## Best Practices
+
+1. **Always review deployment plans** before approving. The `deploy` command shows you every command that will be executed.
+2. **Add `.env`, `.agent-cloud/`, and `agent-cloud.db` to `.gitignore`.**
+3. **Use least-privilege IAM roles** for cloud deployments. Only grant the permissions needed for your deployment type.
+4. **Run `cloud-agent status`** before deploying to verify your environment is correctly configured.
+5. **Keep cloud CLIs updated** to get the latest security patches.
+6. **Audit deployment history** with `cloud-agent history` to track what was deployed and when.

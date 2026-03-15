@@ -1,0 +1,171 @@
+---
+title: How Agents Work
+description: The ReAct pattern, tool calling, model selection, and how AI agents drive the deployment workflow.
+---
+
+Agent Cloud uses three AI agents built with the Mastra framework. This page explains the agentic pattern they follow and how the system coordinates them.
+
+## The ReAct Pattern
+
+All three agents use the **ReAct (Reasoning + Acting)** pattern. The LLM receives a prompt along with descriptions of available tools, then iteratively reasons about what to do and acts by calling tools until it has enough information to produce a final answer.
+
+Here is a simplified trace of the analyzer agent processing a Node.js project:
+
+```
+1. Agent receives: "Analyze the project at /home/user/my-app"
+
+2. Agent thinks: "I should scan the directory structure first"
+   -> Calls: fileSystemTool({ path: "/home/user/my-app" })
+   -> Returns: [package.json, src/, Dockerfile, tsconfig.json, ...]
+
+3. Agent thinks: "I see a package.json, let me analyze dependencies"
+   -> Calls: dependencyAnalyzerTool({ path: "/home/user/my-app" })
+   -> Returns: { runtime: "node", framework: "express", databases: ["postgresql"] }
+
+4. Agent thinks: "Let me get more details from package.json"
+   -> Calls: packageJsonParserTool({ path: "/home/user/my-app/package.json" })
+   -> Returns: { buildCommand: "tsc", startCommand: "node dist/index.js", port: 3000 }
+
+5. Agent thinks: "I have enough information to produce the analysis"
+   -> Generates final JSON response
+```
+
+The key insight is that **the code does not specify which tools to call or in what order**. The LLM decides the execution flow based on its instructions and the tool descriptions. This is what makes it "agentic" rather than a fixed pipeline.
+
+## Tool Definitions
+
+Each tool is defined with `createTool()` from Mastra and includes:
+
+- **`id`** -- unique identifier the agent uses to call the tool
+- **`description`** -- natural language description that the LLM reads to decide when to use the tool
+- **`inputSchema`** -- Zod schema defining what parameters the tool accepts
+- **`outputSchema`** -- Zod schema defining what the tool returns
+- **`execute`** -- the actual TypeScript function that runs
+
+Example (simplified):
+
+```typescript
+const fileSystemTool = createTool({
+    id: 'fs-analyzer',
+    description: 'Scan a directory and return its file structure with sizes',
+    inputSchema: z.object({
+        path: z.string().describe('Directory path to scan'),
+    }),
+    outputSchema: z.object({
+        files: z.array(z.object({
+            name: z.string(),
+            size: z.number(),
+            type: z.enum(['file', 'directory']),
+        })),
+    }),
+    execute: async ({ context }) => {
+        // Actual file system scanning logic
+        const files = await scanDirectory(context.path);
+        return { files };
+    },
+});
+```
+
+The LLM sees the `description` and `inputSchema` in its context. When it decides to call the tool, Mastra validates the input against the schema, executes the function, validates the output, and feeds the result back to the LLM.
+
+## Streaming
+
+Agent Cloud uses streaming to show progress in real time while agents think:
+
+```typescript
+const stream = await agent.stream([
+    { role: 'user', content: analysisPrompt },
+]);
+
+for await (const chunk of stream.textStream) {
+    process.stdout.write(chunk);
+    fullResponse += chunk;
+}
+```
+
+This means the user sees output appearing as the agent generates it, rather than waiting for the entire response.
+
+## Model Selection
+
+All three agents use conditional model selection at module load time:
+
+```typescript
+model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    ? 'google/gemini-2.0-flash'
+    : 'openai/gpt-4o-mini',
+```
+
+| Condition | Model |
+|-----------|-------|
+| `GOOGLE_GENERATIVE_AI_API_KEY` is set | Google Gemini 2.0 Flash |
+| Only `OPENAI_API_KEY` is set | OpenAI GPT-4o Mini |
+
+Gemini takes priority because it has a free tier. Both models are capable of tool calling and structured output generation. Mastra abstracts the model API differences -- the same agent code works with either provider.
+
+## Agent Coordination
+
+The three agents do not communicate directly with each other. Instead, they are coordinated by the **deployment workflow**:
+
+```
+Workflow Step
+    |
+    |-- Calls validator agent (environment check)
+    |       Returns: validation JSON
+    |
+    |-- Calls analyzer agent (project analysis)
+    |       Returns: analysis JSON
+    |
+    |-- Calls deployment agent (plan generation)
+    |       Input includes analysis results
+    |       Returns: deployment plan JSON
+    |
+    |-- SUSPEND (present plan to user)
+    |
+    |-- On resume: execute deployment using provider classes
+```
+
+The workflow passes the output of one agent as input context to the next. The deployment agent receives the analyzer's output as part of its prompt, so it knows what kind of project it is planning for.
+
+## Agent Instructions
+
+Each agent has a detailed system prompt (the `instructions` field) that defines:
+
+1. **Role** -- what the agent is responsible for
+2. **Process** -- step-by-step procedure to follow
+3. **Output format** -- expected JSON structure
+4. **Guidelines** -- rules about when to use tools, how to handle errors, and what to prioritize
+
+For example, the analyzer agent's instructions tell it to:
+- Always use tools to gather information (not guess)
+- Provide confidence scores for its analysis
+- Be specific in recommendations
+- Note when it cannot determine something
+
+The deployment agent's instructions tell it to:
+- Generate plans for all three clouds for comparison
+- Include cost breakdowns and setup prerequisites
+- Explain trade-offs between providers
+- Recommend the best cloud for the specific project
+
+## Error Handling
+
+Agents can fail in several ways:
+
+- **API key invalid or expired** -- Mastra throws an authentication error
+- **Rate limiting** -- the model provider returns a 429; agents have `maxRetries: 2`
+- **Tool execution failure** -- a tool throws an error; the LLM receives the error and can try a different approach
+- **Invalid output** -- the agent generates non-JSON or malformed output; the CLI catches this and falls back to displaying raw text
+
+The CLI wraps all agent calls in try/catch blocks and provides user-friendly error messages with actionable suggestions (e.g., "Run `cloud-agent init` to reconfigure your API key").
+
+## Why Not a Fixed Pipeline?
+
+A traditional deployment tool would use a fixed sequence: read package.json, check for Dockerfile, look up a service mapping table, output a plan. This is predictable but brittle -- it breaks on unusual project structures.
+
+The agentic approach is more flexible. The LLM can:
+- Adapt to unexpected file structures
+- Read additional files when standard ones are missing
+- Make judgment calls about ambiguous project types
+- Provide nuanced recommendations based on the full context
+
+The tradeoff is that agent responses are non-deterministic and slower than a lookup table. Agent Cloud mitigates this by using local analysis as the default (fast, deterministic) and reserving AI analysis for when the user opts in with `--ai` or `deploy`.

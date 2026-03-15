@@ -1,0 +1,161 @@
+---
+title: "cloud-agent deploy"
+description: "Command reference for cloud-agent deploy -- the full AI-powered deployment pipeline."
+---
+
+The `deploy` command is the core of Agent Cloud. It runs a 5-phase deployment workflow: environment validation, project analysis, deployment planning, human approval, and real cloud execution.
+
+## Usage
+
+```bash
+cloud-agent deploy [options]
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `-c, --cloud <provider>` | Cloud provider to deploy to. One of `aws`, `gcp`, `azure`. If not specified, uses the default from config or prompts interactively. |
+| `-p, --path <directory>` | Path to the project directory. Defaults to the current working directory. |
+| `-y, --yes` | Auto-approve the deployment plan without interactive confirmation. |
+| `--app-name <name>` | Override the application name. Defaults to the `name` field in `package.json` or the directory name. |
+| `--port <number>` | Override the container port. Defaults to the port detected during analysis. |
+| `--image <name>` | Use an existing Docker image instead of building one. |
+| `--build-dir <path>` | Specify the build output directory for static site deployments. |
+| `--dry-run` | Generate and display the deployment plan without executing it. |
+
+## Requirements
+
+- An AI API key (`GOOGLE_GENERATIVE_AI_API_KEY` or `OPENAI_API_KEY`)
+- The target cloud's CLI installed and authenticated
+- Docker (for container-based deployments)
+
+## How It Works
+
+The deploy command creates a Mastra workflow run and executes it through five phases:
+
+### Phase 1: Environment Validation
+
+The **validator agent** checks your environment:
+- Cloud CLI installed and version is recent enough
+- You are authenticated with the cloud provider
+- Required environment variables are set
+- Network connectivity to cloud APIs
+- Basic permissions to create resources
+
+If critical issues are found, the workflow stops and reports what needs to be fixed.
+
+### Phase 2: Project Analysis
+
+The **analyzer agent** scans your project:
+- Detects runtime, framework, and dependencies
+- Identifies databases and external services
+- Checks for Docker configuration
+- Determines build and start commands
+
+### Phase 3: Deployment Planning
+
+The **deployment agent** generates a plan:
+- Maps your project to specific cloud services
+- Estimates monthly cost
+- Generates the exact CLI commands that will be executed
+- Identifies potential warnings or issues
+
+### Phase 4: Human Approval
+
+The workflow **suspends** and displays the plan to you:
+
+```
+  ── Deployment Plan ──────────────────────
+
+  Services:
+    - ECS Fargate
+    - Application Load Balancer
+    - CloudWatch Logs
+
+  Estimated Cost: $35.00 /month
+
+  Commands to execute:
+    aws ecr create-repository --repository-name my-app
+    docker build -t my-app .
+    docker tag my-app:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/my-app
+    aws ecs create-cluster --cluster-name my-app-cluster
+    aws ecs register-task-definition ...
+    aws ecs create-service ...
+    ... and 2 more
+
+  ? Proceed with this deployment? (y/N)
+```
+
+- Press `y` to approve and proceed to execution
+- Press `n` to cancel (no resources are created)
+- With `--yes`, this step is skipped and the plan is auto-approved
+
+The workflow state is persisted to a local LibSQL database, so it can theoretically survive process crashes.
+
+### Phase 5: Cloud Execution
+
+Once approved, Agent Cloud:
+1. Dynamically imports the appropriate cloud provider module
+2. Authenticates with the cloud provider
+3. Executes the deployment commands in sequence
+4. Records the result (URL, resources created, duration) to deployment history
+
+## Examples
+
+### Deploy to AWS
+
+```bash
+cloud-agent deploy --cloud aws
+```
+
+### Deploy to GCP with auto-approve
+
+```bash
+cloud-agent deploy --cloud gcp --yes
+```
+
+### Deploy a different directory
+
+```bash
+cloud-agent deploy --cloud azure --path /path/to/project
+```
+
+### Custom app name and port
+
+```bash
+cloud-agent deploy --cloud aws --app-name my-service --port 8080
+```
+
+### Dry run (plan only, no execution)
+
+```bash
+cloud-agent deploy --cloud aws --dry-run
+```
+
+## What Gets Created
+
+The resources created depend on the cloud provider and project type. See the provider-specific pages for details:
+
+- [AWS Provider](/docs/providers/aws/) -- ECS clusters, ECR repos, load balancers, S3 buckets
+- [GCP Provider](/docs/providers/gcp/) -- Cloud Run services, Cloud Functions, Firebase sites
+- [Azure Provider](/docs/providers/azure/) -- Container Apps, Function Apps, Static Web Apps
+
+## Deployment History
+
+Every deployment (successful or failed) is recorded in `.agent-cloud/config.json`. View past deployments with:
+
+```bash
+cloud-agent history
+```
+
+## Environment Variables
+
+The deploy command reads environment variables from a `.env` file in your project directory (if present) and passes them to the deployed application. Sensitive variables like API keys are forwarded securely to the cloud environment.
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Deployment completed successfully |
+| 1 | Deployment failed or was cancelled |

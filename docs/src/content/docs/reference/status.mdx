@@ -1,0 +1,98 @@
+---
+title: "cloud-agent status"
+description: "Command reference for cloud-agent status -- check if your environment is ready for cloud deployment."
+---
+
+The `status` command validates your local environment to ensure it is ready for deploying to a specific cloud provider. It can run in two modes: a basic check (no API key needed) or an AI-powered comprehensive check.
+
+## Usage
+
+```bash
+cloud-agent status [options]
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `-c, --cloud <provider>` | Cloud provider to check. One of `aws`, `gcp`, `azure`. Defaults to the configured default or `aws`. |
+
+## What It Checks
+
+### Basic Mode (No API Key)
+
+If no AI API key is configured, status runs basic checks:
+
+1. **CLI installed** -- runs `aws --version`, `gcloud --version`, or `az --version` and reports the version
+2. **Authentication** -- runs the provider's identity command (`aws sts get-caller-identity`, `gcloud auth list`, or `az account show`)
+
+### AI-Powered Mode (With API Key)
+
+If an API key is available, the **validator agent** runs a comprehensive check:
+
+1. **CLI Tool Verification** -- checks installation and version currency
+2. **Authentication Status** -- verifies active authentication and identifies the user/account
+3. **Environment Variables** -- checks for required provider-specific variables
+4. **Network Connectivity** -- tests connectivity to cloud provider APIs and measures latency
+5. **Permission Verification** -- attempts basic operations to verify you have sufficient permissions
+
+## Example Output
+
+### Basic Mode
+
+```
+  ── Environment Status Check ──────────
+
+  Checking AWS environment...
+
+  ✓ CLI installed (aws-cli/2.15.0)
+  ✓ Authenticated
+```
+
+### AI-Powered Mode
+
+```
+  ── Environment Status Check ──────────
+
+  Checking AWS environment...
+
+  ✓ Environment checks complete
+
+  ℹ Check Results:
+
+  ✅ CLI Tool: AWS CLI v2.15.0 is installed and up to date
+  ✅ Authentication: Authenticated as arn:aws:iam::123456789:user/deploy-user
+  ✅ Env Variables: All required environment variables are set
+  ✅ Network: Connection to AWS APIs successful (45ms)
+  ⚠️  Permissions: Limited permissions detected
+
+  Issues found:
+  ⚠️  ECS permissions not verified - you may need AmazonECS_FullAccess
+     Fix: Attach the AmazonECS_FullAccess policy to your IAM user
+
+  ⚠ Environment needs some configuration. See issues above.
+```
+
+## Issue Severity Levels
+
+The AI-powered check categorizes issues:
+
+| Severity | Meaning |
+|----------|---------|
+| **error** | Blocks deployment. Must be fixed before deploying. |
+| **warning** | May cause issues. Should be fixed but deployment might still work. |
+| **info** | Optional improvements. Nice to have but not required. |
+
+## When to Use
+
+Run `status` before `deploy` to catch configuration issues early:
+
+```bash
+# Check AWS environment
+cloud-agent status --cloud aws
+
+# If everything passes, proceed to deploy
+cloud-agent deploy --cloud aws
+```
+
+The deploy command also runs environment validation as its first phase, but running `status` separately lets you diagnose issues without starting the full deployment workflow.
