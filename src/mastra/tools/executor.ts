@@ -2,8 +2,21 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { shellEscape } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
+
+const ALLOWED_COMMAND_PREFIXES = [
+    'aws', 'gcloud', 'az', 'docker', 'firebase', 'func', 'npx', 'curl',
+    'node', 'npm', 'yarn', 'pnpm',
+];
+
+function isCommandAllowed(command: string): boolean {
+    const trimmed = command.trim();
+    return ALLOWED_COMMAND_PREFIXES.some(prefix =>
+        trimmed === prefix || trimmed.startsWith(prefix + ' ')
+    );
+}
 
 /**
  * Command Executor Tool
@@ -11,7 +24,7 @@ const execAsync = promisify(exec);
  */
 export const commandExecutorTool = createTool({
     id: 'command-executor',
-    description: 'Execute shell commands safely with validation and error handling',
+    description: 'Execute shell commands safely with validation and error handling. Only allowed commands: ' + ALLOWED_COMMAND_PREFIXES.join(', '),
     inputSchema: z.object({
         command: z.string().describe('The command to execute'),
         cwd: z.string().optional().describe('Working directory'),
@@ -26,6 +39,15 @@ export const commandExecutorTool = createTool({
     }),
     execute: async (inputData, context) => {
         const { command, cwd, env, timeout } = inputData;
+
+        if (!isCommandAllowed(command)) {
+            return {
+                stdout: '',
+                stderr: `Command not allowed. Only these prefixes are permitted: ${ALLOWED_COMMAND_PREFIXES.join(', ')}`,
+                exitCode: 1,
+                success: false,
+            };
+        }
 
         try {
             const { stdout, stderr } = await execAsync(command, {
@@ -73,13 +95,13 @@ export const awsCommandTool = createTool({
     execute: async (inputData, context) => {
         const { service, action, parameters = {}, region } = inputData;
 
-        // Build AWS CLI command
+        // Build AWS CLI command with shell-escaped parameters
         const params = Object.entries(parameters)
-            .map(([key, value]) => `--${key} ${value}`)
+            .map(([key, value]) => `--${key} ${shellEscape(value)}`)
             .join(' ');
 
-        const regionFlag = region ? `--region ${region}` : '';
-        const command = `aws ${service} ${action} ${params} ${regionFlag}`.trim();
+        const regionFlag = region ? `--region ${shellEscape(region)}` : '';
+        const command = `aws ${shellEscape(service)} ${shellEscape(action)} ${params} ${regionFlag}`.trim();
 
         try {
             const { stdout } = await execAsync(command);
@@ -131,7 +153,7 @@ export const dockerBuildTool = createTool({
         const { imageName, tag = 'latest', dockerfile = 'Dockerfile', context: buildContext = '.' } = inputData;
 
         const fullImageName = `${imageName}:${tag}`;
-        const command = `docker build -t ${fullImageName} -f ${dockerfile} ${buildContext}`;
+        const command = `docker build -t ${shellEscape(fullImageName)} -f ${shellEscape(dockerfile)} ${shellEscape(buildContext)}`;
 
         try {
             const { stdout } = await execAsync(command);
