@@ -58,7 +58,7 @@ export default function Hero() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
               <a
-                href="/docs"
+                href="https://agent-cloud-5o86.vercel.app"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-white/10 text-neutral-300 font-medium hover:bg-white/5 transition-all"
               >
                 Documentation

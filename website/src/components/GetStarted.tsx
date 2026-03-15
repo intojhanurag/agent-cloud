@@ -86,7 +86,7 @@ export default function GetStarted() {
           className="mt-10 flex gap-3"
         >
           <a
-            href="/docs"
+            href="https://agent-cloud-5o86.vercel.app"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-black font-medium hover:bg-neutral-200 transition-all text-sm"
           >
             Read the docs

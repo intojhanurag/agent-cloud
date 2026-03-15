@@ -9,7 +9,7 @@ const links = [
   { href: "#how-it-works", label: "How It Works" },
   { href: "#providers", label: "Providers" },
   { href: "#cli", label: "CLI" },
-  { href: "/docs", label: "Docs" },
+  { href: "https://agent-cloud-5o86.vercel.app", label: "Docs" },
 ];
 
 export default function Navbar() {

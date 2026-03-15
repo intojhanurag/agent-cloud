@@ -44,10 +44,10 @@ export default function Footer() {
             <h4 className="text-sm font-medium text-neutral-400 mb-4">Documentation</h4>
             <ul className="space-y-2.5">
               {[
-                { href: "/docs", label: "Introduction" },
-                { href: "/docs/guides/quickstart", label: "Quick Start" },
-                { href: "/docs/reference/deploy", label: "Deploy Reference" },
-                { href: "/docs/advanced/architecture", label: "Architecture" },
+                { href: "https://agent-cloud-5o86.vercel.app", label: "Introduction" },
+                { href: "https://agent-cloud-5o86.vercel.app/guides/quickstart", label: "Quick Start" },
+                { href: "https://agent-cloud-5o86.vercel.app/reference/deploy", label: "Deploy Reference" },
+                { href: "https://agent-cloud-5o86.vercel.app/advanced/architecture", label: "Architecture" },
               ].map((l) => (
                 <li key={l.href}>
                   <a href={l.href} className="text-sm text-neutral-600 hover:text-white transition-colors">
@@ -64,7 +64,7 @@ export default function Footer() {
               {[
                 { href: "https://github.com/intojhanurag/agent-cloud", label: "GitHub", ext: true },
                 { href: "https://github.com/intojhanurag/agent-cloud/issues", label: "Issues", ext: true },
-                { href: "/docs/contributing", label: "Contributing", ext: false },
+                { href: "https://agent-cloud-5o86.vercel.app/contributing", label: "Contributing", ext: false },
                 { href: "https://www.npmjs.com/package/agent-cloud", label: "npm", ext: true },
               ].map((l) => (
                 <li key={l.href}>
