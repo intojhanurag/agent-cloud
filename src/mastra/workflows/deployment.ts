@@ -22,6 +22,11 @@ export const deploymentStep = createStep({
     inputSchema: z.object({
         projectPath: z.string(),
         cloud: z.enum(['aws', 'gcp', 'azure']),
+        appName: z.string(),
+        containerPort: z.number().optional(),
+        buildDir: z.string().optional(),
+        dockerImage: z.string().optional(),
+        envVars: z.record(z.string()).optional(),
     }),
     outputSchema: z.object({
         success: z.boolean(),
@@ -49,7 +54,7 @@ export const deploymentStep = createStep({
         runtime: z.string().optional(),
     }),
     execute: async ({ inputData, resumeData, suspend }) => {
-        const { projectPath, cloud } = inputData;
+        const { projectPath, cloud, appName, containerPort, buildDir, dockerImage, envVars } = inputData;
         const { approved } = resumeData ?? {};
 
         // Initialize production utilities
@@ -236,15 +241,17 @@ Provide JSON with services, estimatedCost, and commands.`;
                     if (projectType === 'static') {
                         logger.info('Deploying static site to AWS S3');
                         deploymentResult = await aws.deployStaticSite({
-                            siteName: 'agent-cloud-app',
-                            buildDir: './dist',
+                            siteName: appName,
+                            buildDir: buildDir || './dist',
                         });
                     } else {
                         // Default to ECS for APIs and containers
                         logger.info('Deploying containerized app to AWS ECS');
                         deploymentResult = await aws.deployToECS({
-                            appName: 'agent-cloud-app',
-                            containerPort: 3000,
+                            appName,
+                            dockerImage,
+                            containerPort: containerPort || 3000,
+                            envVars,
                         });
                     }
                 } else if (cloud === 'gcp') {
@@ -271,15 +278,17 @@ Provide JSON with services, estimatedCost, and commands.`;
                     if (projectType === 'static') {
                         logger.info('Deploying static site to Firebase');
                         deploymentResult = await gcp.deployToFirebase({
-                            siteName: 'agent-cloud-app',
-                            buildDir: './dist',
+                            siteName: appName,
+                            buildDir: buildDir || './dist',
                         });
                     } else {
                         // Default to Cloud Run for APIs and containers
                         logger.info('Deploying containerized app to Cloud Run');
                         deploymentResult = await gcp.deployToCloudRun({
-                            serviceName: 'agent-cloud-app',
-                            containerPort: 8080,
+                            serviceName: appName,
+                            dockerImage,
+                            containerPort: containerPort || 8080,
+                            envVars,
                         });
                     }
                 } else if (cloud === 'azure') {
@@ -287,7 +296,7 @@ Provide JSON with services, estimatedCost, and commands.`;
                     const { AzureProvider } = await import('../../providers/azure/index.js');
                     const azure = new AzureProvider({
                         resourceGroup: process.env.AZURE_RESOURCE_GROUP || 'agent-cloud-rg',
-                        location: process.env.AZURE_LOCATION || 'centralindia',
+                        location: process.env.AZURE_LOCATION || 'eastus',
                     });
 
                     // Authenticate
@@ -306,15 +315,17 @@ Provide JSON with services, estimatedCost, and commands.`;
                     if (projectType === 'static') {
                         logger.info('Deploying static site to Azure Static Web Apps');
                         deploymentResult = await azure.deployStaticWebApp({
-                            appName: 'agent-cloud-app',
-                            buildDir: './dist',
+                            appName,
+                            buildDir: buildDir || './dist',
                         });
                     } else {
                         // Default to Container Apps for APIs and containers
                         logger.info('Deploying containerized app to Azure Container Apps');
                         deploymentResult = await azure.deployToContainerApps({
-                            appName: 'agent-cloud-app',
-                            containerPort: 8080,
+                            appName,
+                            dockerImage,
+                            containerPort: containerPort || 8080,
+                            envVars,
                         });
                     }
                 }
@@ -423,6 +434,11 @@ export const deploymentWorkflow = createWorkflow({
     inputSchema: z.object({
         projectPath: z.string(),
         cloud: z.enum(['aws', 'gcp', 'azure']),
+        appName: z.string(),
+        containerPort: z.number().optional(),
+        buildDir: z.string().optional(),
+        dockerImage: z.string().optional(),
+        envVars: z.record(z.string()).optional(),
     }),
     outputSchema: z.object({
         success: z.boolean(),

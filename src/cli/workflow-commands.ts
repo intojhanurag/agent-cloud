@@ -1,10 +1,28 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import path from 'path';
+import fs from 'fs';
 import { displayHeader, displaySuccess, displayError, displayInfo, displayWarning } from './banner.js';
 import { Spinner } from '../utils/progress.js';
 import type { CloudProvider } from '../types/index.js';
 import { getConfigManager } from '../utils/config.js';
 import { collectDeploymentRequirements } from './prompts.js';
+
+function deriveAppName(projectPath: string): string {
+    try {
+        const pkgPath = path.join(projectPath, 'package.json');
+        if (fs.existsSync(pkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+            if (pkg.name && typeof pkg.name === 'string') {
+                // Strip npm scope (e.g. @org/name -> name)
+                return pkg.name.replace(/^@[^/]+\//, '');
+            }
+        }
+    } catch {
+        // fall through
+    }
+    return path.basename(projectPath);
+}
 
 /**
  * Real Status Command - Uses Validator Agent
@@ -179,7 +197,16 @@ async function runBasicStatusCheck(cloud: string): Promise<void> {
 /**
  * Real Deploy Command - Uses Deployment Workflow with interactive approval
  */
-export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?: boolean }): Promise<void> {
+export async function realDeployCommand(options?: {
+    cloud?: CloudProvider;
+    yes?: boolean;
+    appName?: string;
+    port?: number;
+    image?: string;
+    buildDir?: string;
+    dryRun?: boolean;
+    json?: boolean;
+}): Promise<void> {
     try {
         displayHeader('Cloud Deployment');
 
@@ -225,10 +252,37 @@ export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?:
         const spinner = new Spinner('Analyzing project and generating plan...');
         spinner.start();
 
+        const appName = options?.appName || deriveAppName(projectPath);
+        console.log(chalk.cyan(`  App Name: ${chalk.bold(appName)}`));
+
+        // Load env vars from .env file in project if present
+        let envVars: Record<string, string> | undefined;
+        const envFilePath = path.join(projectPath, '.env');
+        if (fs.existsSync(envFilePath)) {
+            envVars = {};
+            const envContent = fs.readFileSync(envFilePath, 'utf-8');
+            for (const line of envContent.split('\n')) {
+                const trimmed = line.trim();
+                if (trimmed && !trimmed.startsWith('#')) {
+                    const eqIdx = trimmed.indexOf('=');
+                    if (eqIdx > 0) {
+                        const key = trimmed.substring(0, eqIdx).trim();
+                        const value = trimmed.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+                        envVars[key] = value;
+                    }
+                }
+            }
+        }
+
         const result = await run.start({
             inputData: {
                 projectPath,
                 cloud,
+                appName,
+                containerPort: options?.port,
+                buildDir: options?.buildDir,
+                dockerImage: options?.image,
+                envVars,
             },
         });
 
@@ -266,6 +320,23 @@ export async function realDeployCommand(options?: { cloud?: CloudProvider; yes?:
                         console.log(chalk.gray(`    ... and ${suspendData.commands.length - 8} more`));
                     }
                     console.log();
+                }
+
+                // Dry-run: show plan and exit
+                if (options?.dryRun) {
+                    if (options?.json) {
+                        console.log(JSON.stringify({
+                            dryRun: true,
+                            cloud,
+                            appName,
+                            services: suspendData.services,
+                            estimatedCost: suspendData.estimatedCost,
+                            commands: suspendData.commands,
+                        }, null, 2));
+                    } else {
+                        displayInfo('Dry run complete. No resources were created.');
+                    }
+                    return;
                 }
 
                 // Interactive approval or auto-approve

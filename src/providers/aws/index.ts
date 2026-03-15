@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
-import { sanitizeResourceName, sanitizePath } from '../../utils/shell.js';
+import { sanitizeResourceName, shellEscape } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
 
@@ -67,23 +67,37 @@ export class AWSProvider {
         appName: string;
         dockerImage?: string;
         containerPort?: number;
+        envVars?: Record<string, string>;
     }): Promise<DeploymentResult> {
         const { appName, containerPort = 3000 } = options;
         const safeName = sanitizeResourceName(appName);
         const clusterName = `${safeName}-cluster`;
         const serviceName = `${safeName}-service`;
         const taskFamily = `${safeName}-task`;
+        const region = shellEscape(this.config.region || 'us-east-1');
 
         try {
             console.log('\n🚀 Deploying to AWS ECS Fargate...\n');
 
             // Step 1: Create ECS cluster
             console.log('📦 Creating ECS cluster...');
-            await execAsync(`aws ecs create-cluster --cluster-name ${clusterName} --region ${this.config.region}`);
+            await execAsync(`aws ecs create-cluster --cluster-name ${shellEscape(clusterName)} --region ${region}`);
             console.log(`✓ Cluster created: ${clusterName}`);
 
             // Step 2: Register task definition
             console.log('\n📝 Registering task definition...');
+
+            if (!options.dockerImage) {
+                throw new Error(
+                    `No Docker image provided for "${appName}". ` +
+                    'Please provide a pre-built image with --image or create a Dockerfile in your project root.'
+                );
+            }
+
+            const envVarEntries = options.envVars
+                ? Object.entries(options.envVars).map(([name, value]) => ({ name, value }))
+                : [];
+
             const taskDef = {
                 family: taskFamily,
                 networkMode: 'awsvpc',
@@ -92,8 +106,8 @@ export class AWSProvider {
                 memory: '512',
                 containerDefinitions: [
                     {
-                        name: appName,
-                        image: options.dockerImage || 'nginx:latest',
+                        name: safeName,
+                        image: options.dockerImage,
                         portMappings: [
                             {
                                 containerPort,
@@ -101,6 +115,7 @@ export class AWSProvider {
                             },
                         ],
                         essential: true,
+                        ...(envVarEntries.length > 0 ? { environment: envVarEntries } : {}),
                     },
                 ],
             };
@@ -109,7 +124,7 @@ export class AWSProvider {
             fs.writeFileSync(taskDefFile, JSON.stringify(taskDef, null, 2));
 
             const { stdout: taskResult } = await execAsync(
-                `aws ecs register-task-definition --cli-input-json file://${taskDefFile} --region ${this.config.region}`
+                `aws ecs register-task-definition --cli-input-json file://${taskDefFile} --region ${region}`
             );
             const taskArn = JSON.parse(taskResult).taskDefinition.taskDefinitionArn;
             console.log(`✓ Task definition registered: ${taskFamily}`);
@@ -117,43 +132,76 @@ export class AWSProvider {
             // Step 3: Get default VPC and subnets
             console.log('\n🌐 Getting VPC configuration...');
             const { stdout: vpcResult } = await execAsync(
-                `aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --region ${this.config.region}`
+                `aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --region ${region}`
             );
             const vpc = JSON.parse(vpcResult).Vpcs[0];
 
             const { stdout: subnetResult } = await execAsync(
-                `aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpc.VpcId}" --region ${this.config.region}`
+                `aws ec2 describe-subnets --filters "Name=vpc-id,Values=${shellEscape(vpc.VpcId)}" --region ${region}`
             );
             const subnets = JSON.parse(subnetResult).Subnets;
             const subnetIds = subnets.map((s: any) => s.SubnetId).slice(0, 2);
 
             // Step 4: Create security group
             console.log('\n🔒 Creating security group...');
-            const sgName = `${appName}-sg`;
+            const sgName = `${safeName}-sg`;
             const { stdout: sgResult } = await execAsync(
-                `aws ec2 create-security-group --group-name ${sgName} --description "Security group for ${appName}" --vpc-id ${vpc.VpcId} --region ${this.config.region}`
+                `aws ec2 create-security-group --group-name ${shellEscape(sgName)} --description ${shellEscape(`Security group for ${safeName}`)} --vpc-id ${shellEscape(vpc.VpcId)} --region ${region}`
             );
             const securityGroupId = JSON.parse(sgResult).GroupId;
 
             // Allow inbound traffic
             await execAsync(
-                `aws ec2 authorize-security-group-ingress --group-id ${securityGroupId} --protocol tcp --port ${containerPort} --cidr 0.0.0.0/0 --region ${this.config.region}`
+                `aws ec2 authorize-security-group-ingress --group-id ${shellEscape(securityGroupId)} --protocol tcp --port ${containerPort} --cidr 0.0.0.0/0 --region ${region}`
             );
             console.log(`✓ Security group created: ${securityGroupId}`);
 
             // Step 5: Create ECS service
             console.log('\n🎯 Creating ECS service...');
-            await execAsync(`
-                aws ecs create-service \
-                    --cluster ${clusterName} \
-                    --service-name ${serviceName} \
-                    --task-definition ${taskFamily} \
-                    --desired-count 1 \
-                    --launch-type FARGATE \
-                    --network-configuration "awsvpcConfiguration={subnets=[${subnetIds.join(',')}],securityGroups=[${securityGroupId}],assignPublicIp=ENABLED}" \
-                    --region ${this.config.region}
-            `);
+            const subnetList = subnetIds.map((id: string) => shellEscape(id)).join(',');
+            await execAsync(
+                `aws ecs create-service --cluster ${shellEscape(clusterName)} --service-name ${shellEscape(serviceName)} --task-definition ${shellEscape(taskFamily)} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${subnetList}],securityGroups=[${shellEscape(securityGroupId)}],assignPublicIp=ENABLED}" --region ${region}`
+            );
             console.log(`✓ Service created: ${serviceName}`);
+
+            // Poll for running task to get real public IP
+            console.log('\n⏳ Waiting for task to start...');
+            let publicUrl = '';
+            for (let attempt = 0; attempt < 12; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 10000));
+                try {
+                    const { stdout: tasksOut } = await execAsync(
+                        `aws ecs list-tasks --cluster ${shellEscape(clusterName)} --service-name ${shellEscape(serviceName)} --desired-status RUNNING --region ${region}`
+                    );
+                    const taskArns = JSON.parse(tasksOut).taskArns;
+                    if (!taskArns || taskArns.length === 0) continue;
+
+                    const { stdout: descOut } = await execAsync(
+                        `aws ecs describe-tasks --cluster ${shellEscape(clusterName)} --tasks ${shellEscape(taskArns[0])} --region ${region}`
+                    );
+                    const task = JSON.parse(descOut).tasks?.[0];
+                    const eniAttachment = task?.attachments?.find((a: any) => a.type === 'ElasticNetworkInterface');
+                    const eniDetail = eniAttachment?.details?.find((d: any) => d.name === 'networkInterfaceId');
+                    if (!eniDetail?.value) continue;
+
+                    const { stdout: eniOut } = await execAsync(
+                        `aws ec2 describe-network-interfaces --network-interface-ids ${shellEscape(eniDetail.value)} --region ${region}`
+                    );
+                    const publicIp = JSON.parse(eniOut).NetworkInterfaces?.[0]?.Association?.PublicIp;
+                    if (publicIp) {
+                        publicUrl = `http://${publicIp}:${containerPort}`;
+                        console.log(`✓ Task running at: ${publicUrl}`);
+                        break;
+                    }
+                } catch {
+                    // retry
+                }
+            }
+
+            if (!publicUrl) {
+                publicUrl = `Check AWS console for service ${serviceName} in cluster ${clusterName}`;
+                console.log(`⚠ Could not determine public IP. ${publicUrl}`);
+            }
 
             return {
                 success: true,
@@ -162,7 +210,7 @@ export class AWSProvider {
                     service: serviceName,
                     taskDefinition: taskFamily,
                 },
-                url: `http://<task-ip>:${containerPort}`,
+                url: publicUrl,
             };
         } catch (error) {
             return {
@@ -184,13 +232,14 @@ export class AWSProvider {
         zipFile: string;
     }): Promise<DeploymentResult> {
         const { functionName, runtime, handler, zipFile } = options;
+        const region = shellEscape(this.config.region || 'us-east-1');
 
         try {
             console.log('\n🚀 Deploying to AWS Lambda...\n');
 
             // Create IAM role for Lambda
             console.log('🔑 Creating IAM role...');
-            const roleName = `${functionName}-role`;
+            const roleName = `${sanitizeResourceName(functionName)}-role`;
             const assumeRolePolicy = {
                 Version: '2012-10-17',
                 Statement: [
@@ -202,21 +251,15 @@ export class AWSProvider {
                 ],
             };
 
-            const { stdout: roleResult } = await execAsync(`
-                aws iam create-role \
-                    --role-name ${roleName} \
-                    --assume-role-policy-document '${JSON.stringify(assumeRolePolicy)}' \
-                    --region ${this.config.region}
-            `);
+            const { stdout: roleResult } = await execAsync(
+                `aws iam create-role --role-name ${shellEscape(roleName)} --assume-role-policy-document ${shellEscape(JSON.stringify(assumeRolePolicy))} --region ${region}`
+            );
             const roleArn = JSON.parse(roleResult).Role.Arn;
 
             // Attach basic execution policy
-            await execAsync(`
-                aws iam attach-role-policy \
-                    --role-name ${roleName} \
-                    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
-                    --region ${this.config.region}
-            `);
+            await execAsync(
+                `aws iam attach-role-policy --role-name ${shellEscape(roleName)} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole --region ${region}`
+            );
 
             console.log(`✓ IAM role created  : ${roleArn}`);
 
@@ -226,15 +269,9 @@ export class AWSProvider {
 
             // Create Lambda function
             console.log('\n📦 Creating Lambda function...');
-            const { stdout: lambdaResult } = await execAsync(`
-                aws lambda create-function \
-                    --function-name ${functionName} \
-                    --runtime ${runtime} \
-                    --role ${roleArn} \
-                    --handler ${handler} \
-                    --zip-file fileb://${zipFile} \
-                    --region ${this.config.region}
-            `);
+            const { stdout: lambdaResult } = await execAsync(
+                `aws lambda create-function --function-name ${shellEscape(functionName)} --runtime ${shellEscape(runtime)} --role ${shellEscape(roleArn)} --handler ${shellEscape(handler)} --zip-file fileb://${shellEscape(zipFile)} --region ${region}`
+            );
             const functionArn = JSON.parse(lambdaResult).FunctionArn;
             console.log(`✓ Lambda function created: ${functionArn}`);
 
@@ -264,20 +301,21 @@ export class AWSProvider {
     }): Promise<DeploymentResult> {
         const { siteName, buildDir } = options;
         const bucketName = sanitizeResourceName(`${siteName}-${Date.now()}`);
+        const region = shellEscape(this.config.region || 'us-east-1');
 
         try {
             console.log('\n🚀 Deploying to AWS S3 + CloudFront...\n');
 
             // Create S3 bucket
             console.log('📦 Creating S3 bucket...');
-            await execAsync(`
-                aws s3 mb s3://${bucketName} --region ${this.config.region}
-            `);
+            await execAsync(
+                `aws s3 mb s3://${shellEscape(bucketName)} --region ${region}`
+            );
 
             // Enable static website hosting
-            await execAsync(`
-                aws s3 website s3://${bucketName} --index-document index.html --error-document error.html
-            `);
+            await execAsync(
+                `aws s3 website s3://${shellEscape(bucketName)} --index-document index.html --error-document error.html`
+            );
 
             // Set bucket policy for public read
             const policy = {
@@ -293,20 +331,21 @@ export class AWSProvider {
                 ],
             };
 
-            await execAsync(`
-                aws s3api put-bucket-policy --bucket ${bucketName} --policy '${JSON.stringify(policy)}'
-            `);
+            await execAsync(
+                `aws s3api put-bucket-policy --bucket ${shellEscape(bucketName)} --policy ${shellEscape(JSON.stringify(policy))}`
+            );
 
             console.log(`✓ S3 bucket created: ${bucketName}`);
 
             // Upload files
             console.log('\n📤 Uploading files...');
-            await execAsync(`
-                aws s3 sync ${buildDir} s3://${bucketName} --delete
-            `);
+            await execAsync(
+                `aws s3 sync ${shellEscape(buildDir)} s3://${shellEscape(bucketName)} --delete`
+            );
             console.log('✓ Files uploaded');
 
-            const url = `http://${bucketName}.s3-website-${this.config.region}.amazonaws.com`;
+            const regionRaw = this.config.region || 'us-east-1';
+            const url = `http://${bucketName}.s3-website-${regionRaw}.amazonaws.com`;
 
             return {
                 success: true,
@@ -329,25 +368,23 @@ export class AWSProvider {
      * Deletes all created AWS resources
      */
     async cleanup(resources: { cluster?: string; service?: string }): Promise<void> {
+        const region = shellEscape(this.config.region || 'us-east-1');
+
         try {
             console.log('\n🧹 Cleaning up resources...\n');
 
             if (resources.service && resources.cluster) {
                 console.log(`Deleting service: ${resources.service}`);
-                await execAsync(`
-                    aws ecs delete-service \
-                        --cluster ${resources.cluster} \
-                        --service ${resources.service} \
-                        --force \
-                        --region ${this.config.region}
-                `);
+                await execAsync(
+                    `aws ecs delete-service --cluster ${shellEscape(resources.cluster)} --service ${shellEscape(resources.service)} --force --region ${region}`
+                );
             }
 
             if (resources.cluster) {
                 console.log(`Deleting cluster: ${resources.cluster}`);
-                await execAsync(`
-                    aws ecs delete-cluster --cluster ${resources.cluster} --region ${this.config.region}
-                `);
+                await execAsync(
+                    `aws ecs delete-cluster --cluster ${shellEscape(resources.cluster)} --region ${region}`
+                );
             }
 
             console.log('✓ Cleanup complete');

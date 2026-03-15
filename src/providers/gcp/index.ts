@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
-import { sanitizeResourceName } from '../../utils/shell.js';
+import { sanitizeResourceName, shellEscape } from '../../utils/shell.js';
 
 const execAsync = promisify(exec);
 
@@ -40,6 +40,9 @@ export class GCPProvider {
             region: config.region || process.env.GCLOUD_REGION || 'us-central1',
         };
     }
+
+    private get project(): string { return shellEscape(this.config.project || ''); }
+    private get region(): string { return shellEscape(this.config.region || 'us-central1'); }
 
     /**
      * Authenticate with GCP
@@ -83,12 +86,14 @@ export class GCPProvider {
         dockerImage?: string;
         containerPort?: number;
         allowUnauthenticated?: boolean;
+        envVars?: Record<string, string>;
     }): Promise<DeploymentResult> {
         const {
             serviceName,
             containerPort = 8080,
             allowUnauthenticated = true
         } = options;
+        const safeName = sanitizeResourceName(serviceName);
 
         try {
             console.log('\n🚀 Deploying to Google Cloud Run...\n');
@@ -99,9 +104,9 @@ export class GCPProvider {
             if (!imageUrl) {
                 // Build and push to Google Container Registry
                 console.log('📦 Building container image...');
-                imageUrl = `gcr.io/${this.config.project}/${serviceName}:latest`;
+                imageUrl = `gcr.io/${this.config.project}/${safeName}:latest`;
 
-                await execAsync(`gcloud builds submit --tag ${imageUrl} --project ${this.config.project}`);
+                await execAsync(`gcloud builds submit --tag ${shellEscape(imageUrl)} --project ${this.project}`);
                 console.log(`✓ Image built: ${imageUrl}`);
             }
 
@@ -109,21 +114,19 @@ export class GCPProvider {
             console.log('\n🎯 Deploying service...');
             const allowUnauthFlag = allowUnauthenticated ? '--allow-unauthenticated' : '';
 
-            const { stdout } = await execAsync(`
-                gcloud run deploy ${serviceName} \
-                    --image ${imageUrl} \
-                    --platform managed \
-                    --region ${this.config.region} \
-                    --port ${containerPort} \
-                    ${allowUnauthFlag} \
-                    --project ${this.config.project}
-            `);
+            const envVarsFlag = options.envVars && Object.keys(options.envVars).length > 0
+                ? `--set-env-vars ${shellEscape(Object.entries(options.envVars).map(([k, v]) => `${k}=${v}`).join(','))}`
+                : '';
+
+            const { stdout } = await execAsync(
+                `gcloud run deploy ${shellEscape(safeName)} --image ${shellEscape(imageUrl)} --platform managed --region ${this.region} --port ${containerPort} ${allowUnauthFlag} ${envVarsFlag} --project ${this.project}`
+            );
 
             // Extract service URL from output
             const urlMatch = stdout.match(/Service URL: (https:\/\/[^\s]+)/);
             const url = urlMatch ? urlMatch[1] : undefined;
 
-            console.log(`✓ Service deployed: ${serviceName}`);
+            console.log(`✓ Service deployed: ${safeName}`);
             if (url) {
                 console.log(`✓ URL: ${url}`);
             }
@@ -131,7 +134,7 @@ export class GCPProvider {
             return {
                 success: true,
                 resources: {
-                    service: serviceName,
+                    service: safeName,
                 },
                 url,
             };
@@ -172,16 +175,9 @@ export class GCPProvider {
             const triggerFlag = trigger === 'http' ? '--trigger-http' : `--trigger-${trigger}`;
 
             console.log('📦 Deploying function...');
-            const { stdout } = await execAsync(`
-                gcloud functions deploy ${functionName} \
-                    --runtime ${runtime} \
-                    --entry-point ${entryPoint} \
-                    --source ${sourceDir} \
-                    ${triggerFlag} \
-                    ${allowUnauthFlag} \
-                    --region ${this.config.region} \
-                    --project ${this.config.project}
-            `);
+            const { stdout } = await execAsync(
+                `gcloud functions deploy ${shellEscape(functionName)} --runtime ${shellEscape(runtime)} --entry-point ${shellEscape(entryPoint)} --source ${shellEscape(sourceDir)} ${triggerFlag} ${allowUnauthFlag} --region ${this.region} --project ${this.project}`
+            );
 
             // Extract function URL from output
             const urlMatch = stdout.match(/url: (https:\/\/[^\s]+)/);
@@ -225,45 +221,35 @@ export class GCPProvider {
             errorPage = '404.html',
         } = options;
 
-        const bucketName = `${siteName}-${Date.now()}`;
+        const bucketName = sanitizeResourceName(`${siteName}-${Date.now()}`);
 
         try {
             console.log('\n🚀 Deploying to Google Cloud Storage...\n');
 
             // Create bucket
             console.log('📦 Creating storage bucket...');
-            await execAsync(`
-                gcloud storage buckets create gs://${bucketName} \
-                    --location ${this.config.region} \
-                    --uniform-bucket-level-access \
-                    --project ${this.config.project}
-            `);
+            await execAsync(
+                `gcloud storage buckets create gs://${shellEscape(bucketName)} --location ${this.region} --uniform-bucket-level-access --project ${this.project}`
+            );
             console.log(`✓ Bucket created: ${bucketName}`);
 
             // Make bucket public
             console.log('\n🌐 Configuring public access...');
-            await execAsync(`
-                gcloud storage buckets add-iam-policy-binding gs://${bucketName} \
-                    --member=allUsers \
-                    --role=roles/storage.objectViewer \
-                    --project ${this.config.project}
-            `);
+            await execAsync(
+                `gcloud storage buckets add-iam-policy-binding gs://${shellEscape(bucketName)} --member=allUsers --role=roles/storage.objectViewer --project ${this.project}`
+            );
 
             // Set website configuration
-            await execAsync(`
-                gcloud storage buckets update gs://${bucketName} \
-                    --web-main-page-suffix=${indexPage} \
-                    --web-error-page=${errorPage} \
-                    --project ${this.config.project}
-            `);
+            await execAsync(
+                `gcloud storage buckets update gs://${shellEscape(bucketName)} --web-main-page-suffix=${shellEscape(indexPage)} --web-error-page=${shellEscape(errorPage)} --project ${this.project}`
+            );
             console.log('✓ Website configuration set');
 
             // Upload files
             console.log('\n📤 Uploading files...');
-            await execAsync(`
-                gcloud storage cp -r ${buildDir}/* gs://${bucketName}/ \
-                    --project ${this.config.project}
-            `);
+            await execAsync(
+                `gcloud storage cp -r ${shellEscape(buildDir)}/* gs://${shellEscape(bucketName)}/ --project ${this.project}`
+            );
             console.log('✓ Files uploaded');
 
             const url = `https://storage.googleapis.com/${bucketName}/${indexPage}`;
@@ -302,19 +288,17 @@ export class GCPProvider {
             console.log('📝 Configuring App Engine...');
             const appYaml = `runtime: ${runtime}
 env: standard
-service: ${appName}`;
+service: ${sanitizeResourceName(appName)}`;
 
             fs.writeFileSync(serviceConfig, appYaml);
 
             // Deploy
             console.log('\n🎯 Deploying application...');
-            const { stdout } = await execAsync(`
-                gcloud app deploy ${serviceConfig} \
-                    --quiet \
-                    --project ${this.config.project}
-            `);
+            await execAsync(
+                `gcloud app deploy ${shellEscape(serviceConfig)} --quiet --project ${this.project}`
+            );
 
-            const url = `https://${appName}-dot-${this.config.project}.appspot.com`;
+            const url = `https://${sanitizeResourceName(appName)}-dot-${this.config.project}.appspot.com`;
 
             console.log(`✓ Application deployed to App Engine`);
             console.log(`✓ URL: ${url}`);
@@ -369,7 +353,7 @@ service: ${appName}`;
 
             // Deploy
             console.log('\n📤 Deploying to Firebase...');
-            const { stdout } = await execAsync(`firebase deploy --only hosting --project ${this.config.project}`);
+            const { stdout } = await execAsync(`firebase deploy --only hosting --project ${this.project}`);
 
             // Extract URL
             const urlMatch = stdout.match(/Hosting URL: (https:\/\/[^\s]+)/);
@@ -404,30 +388,23 @@ service: ${appName}`;
 
             if (resources.service) {
                 console.log(`Deleting Cloud Run service: ${resources.service}`);
-                await execAsync(`
-                    gcloud run services delete ${resources.service} \
-                        --region ${this.config.region} \
-                        --quiet \
-                        --project ${this.config.project}
-                `);
+                await execAsync(
+                    `gcloud run services delete ${shellEscape(resources.service)} --region ${this.region} --quiet --project ${this.project}`
+                );
             }
 
             if (resources.function) {
                 console.log(`Deleting Cloud Function: ${resources.function}`);
-                await execAsync(`
-                    gcloud functions delete ${resources.function} \
-                        --region ${this.config.region} \
-                        --quiet \
-                        --project ${this.config.project}
-                `);
+                await execAsync(
+                    `gcloud functions delete ${shellEscape(resources.function)} --region ${this.region} --quiet --project ${this.project}`
+                );
             }
 
             if (resources.bucket) {
                 console.log(`Deleting Cloud Storage bucket: ${resources.bucket}`);
-                await execAsync(`
-                    gcloud storage rm -r gs://${resources.bucket} \
-                        --project ${this.config.project}
-                `);
+                await execAsync(
+                    `gcloud storage rm -r gs://${shellEscape(resources.bucket)} --project ${this.project}`
+                );
             }
 
             console.log('✓ Cleanup complete');
