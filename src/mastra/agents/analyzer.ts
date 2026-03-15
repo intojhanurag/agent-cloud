@@ -5,6 +5,7 @@ import {
   dependencyAnalyzerTool,
   packageJsonParserTool
 } from '../tools/index.js';
+import { getModelId } from './model.js';
 
 /**
  * Project Analyzer Agent
@@ -94,9 +95,7 @@ Provide your analysis in a structured JSON format:
 
   // Uses Google Gemini (free tier available) or falls back to OpenAI
   // Set GOOGLE_GENERATIVE_AI_API_KEY or OPENAI_API_KEY in .env
-  model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
-    ? 'google/gemini-2.0-flash'
-    : 'openai/gpt-4o-mini',
+  model: getModelId(),
 
   tools: {
     fileSystemTool,

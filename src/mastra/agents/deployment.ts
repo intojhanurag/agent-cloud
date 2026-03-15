@@ -4,6 +4,7 @@ import {
   costEstimatorTool,
   commandGeneratorTool,
 } from '../tools/deployment.js';
+import { getModelId } from './model.js';
 
 /**
  * Cloud Deployment Agent
@@ -134,9 +135,7 @@ Provide your deployment plan in structured JSON:
 - Recommend the BEST cloud for this specific project
 - Include warnings about limitations or additional costs`,
 
-  model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
-    ? 'google/gemini-2.0-flash'
-    : 'openai/gpt-4o-mini',
+  model: getModelId(),
 
   tools: {
     serviceMapperTool,

@@ -6,6 +6,7 @@ import {
   networkCheckerTool,
   permissionsCheckerTool,
 } from '../tools/validator.js';
+import { getModelId } from './model.js';
 
 /**
  * Environment Validator Agent
@@ -132,9 +133,7 @@ Provide your validation report in structured JSON:
 - **warning**: May cause issues, should be fixed
 - **info**: Optional improvements, nice to have`,
 
-  model: process.env.GOOGLE_GENERATIVE_AI_API_KEY
-    ? 'google/gemini-2.0-flash'
-    : 'openai/gpt-4o-mini',
+  model: getModelId(),
 
   tools: {
     cliCheckerTool,
