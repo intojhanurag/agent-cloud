@@ -1,5 +1,5 @@
 {
-  "name": "agent-cloud",
+  "name": "@intojhanurag/agent-cloud",
   "version": "1.0.0",
   "description": "AI-Powered Cloud Deployment CLI using Mastra",
   "type": "module",
