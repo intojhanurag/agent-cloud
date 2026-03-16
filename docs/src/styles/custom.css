@@ -1,0 +1,49 @@
+:root {
+  --sl-color-bg: #000000;
+  --sl-color-bg-nav: #000000;
+  --sl-color-bg-sidebar: #000000;
+  --sl-color-hairline-light: rgba(255, 255, 255, 0.06);
+  --sl-color-hairline: rgba(255, 255, 255, 0.08);
+  --sl-color-accent-low: #111111;
+  --sl-color-accent: #ffffff;
+  --sl-color-accent-high: #e5e5e5;
+  --sl-color-text: #d4d4d4;
+  --sl-color-text-accent: #ffffff;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e5e5e5;
+  --sl-color-gray-2: #a3a3a3;
+  --sl-color-gray-3: #737373;
+  --sl-color-gray-4: #404040;
+  --sl-color-gray-5: #262626;
+  --sl-color-gray-6: #171717;
+  --sl-color-black: #000000;
+  --sl-color-bg-inline-code: rgba(255, 255, 255, 0.06);
+  --sl-color-banner-text: #e5e5e5;
+}
+
+[data-theme="light"] {
+  --sl-color-bg: #000000;
+  --sl-color-bg-nav: #000000;
+  --sl-color-bg-sidebar: #000000;
+  --sl-color-hairline-light: rgba(255, 255, 255, 0.06);
+  --sl-color-hairline: rgba(255, 255, 255, 0.08);
+  --sl-color-accent-low: #111111;
+  --sl-color-accent: #ffffff;
+  --sl-color-accent-high: #e5e5e5;
+  --sl-color-text: #d4d4d4;
+  --sl-color-text-accent: #ffffff;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e5e5e5;
+  --sl-color-gray-2: #a3a3a3;
+  --sl-color-gray-3: #737373;
+  --sl-color-gray-4: #404040;
+  --sl-color-gray-5: #262626;
+  --sl-color-gray-6: #171717;
+  --sl-color-black: #000000;
+  --sl-color-bg-inline-code: rgba(255, 255, 255, 0.06);
+}
+
+::selection {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}

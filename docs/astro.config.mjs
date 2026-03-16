@@ -5,6 +5,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Agent Cloud',
+      customCss: ['./src/styles/custom.css'],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/intojhanurag/agent-cloud' },
       ],
